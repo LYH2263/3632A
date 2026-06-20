@@ -11,6 +11,7 @@ import {
   type LowStockAlertResult,
   type Merchant,
   type Order,
+  type OrderFilterParams,
   type OrderStatus,
   type Product,
   type User
@@ -457,14 +458,39 @@ class MerchantService {
     return target;
   }
 
-  async listOrdersByMerchant(merchantId: number): Promise<Order[]> {
+  async listOrdersByMerchant(merchantId: number, filters?: OrderFilterParams): Promise<Order[]> {
     if (this.config.dataMode === 'api') {
-      return request<Order[]>(`/orders?merchant_id=${merchantId}`);
+      const params = new URLSearchParams();
+      params.set('merchant_id', String(merchantId));
+      if (filters?.status) params.set('status', filters.status);
+      if (filters?.date_start) params.set('date_start', filters.date_start);
+      if (filters?.date_end) params.set('date_end', filters.date_end);
+      if (filters?.order_no) params.set('order_no', filters.order_no);
+      if (filters?.phone_suffix) params.set('phone_suffix', filters.phone_suffix);
+      return request<Order[]>(`/orders?${params.toString()}`);
     }
 
-    return readOrders()
+    let result = readOrders()
       .filter((item) => item.merchant_id === merchantId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    if (filters?.status) {
+      result = result.filter((o) => o.status === filters.status);
+    }
+    if (filters?.date_start) {
+      result = result.filter((o) => o.created_at >= filters.date_start!);
+    }
+    if (filters?.date_end) {
+      const end = filters.date_end.includes('T') ? filters.date_end : filters.date_end + 'T23:59:59';
+      result = result.filter((o) => o.created_at <= end);
+    }
+    if (filters?.order_no) {
+      const keyword = filters.order_no.toLowerCase();
+      result = result.filter((o) => o.order_no.toLowerCase().includes(keyword));
+    }
+    if (filters?.phone_suffix) {
+      result = result.filter((o) => o.receiver_phone.endsWith(filters.phone_suffix));
+    }
+    return result;
   }
 
   async updateOrderStatus(orderId: number, status: OrderStatus): Promise<Order> {

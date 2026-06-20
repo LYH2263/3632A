@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from random import randint
 from django.db import transaction
@@ -126,6 +127,29 @@ class OrderListView(APIView):
     def get(self, request):
         buyer_id = request.query_params.get('buyer_id')
         merchant_id = request.query_params.get('merchant_id')
+        status = request.query_params.get('status')
+        date_start = request.query_params.get('date_start')
+        date_end = request.query_params.get('date_end')
+        order_no = request.query_params.get('order_no')
+        phone_suffix = request.query_params.get('phone_suffix')
+
+        if date_start:
+            try:
+                datetime.strptime(date_start, '%Y-%m-%d')
+            except ValueError:
+                try:
+                    datetime.strptime(date_start, '%Y-%m-%dT%H:%M:%S')
+                except ValueError:
+                    return error_response('date_start 格式非法，需 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS', status_code=400)
+
+        if date_end:
+            try:
+                datetime.strptime(date_end, '%Y-%m-%d')
+            except ValueError:
+                try:
+                    datetime.strptime(date_end, '%Y-%m-%dT%H:%M:%S')
+                except ValueError:
+                    return error_response('date_end 格式非法，需 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM:SS', status_code=400)
 
         if merchant_id:
             try:
@@ -142,6 +166,16 @@ class OrderListView(APIView):
             queryset = queryset.filter(buyer_id=buyer_id)
         if merchant_id:
             queryset = queryset.filter(merchant_id=merchant_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if date_start:
+            queryset = queryset.filter(created_at__gte=date_start)
+        if date_end:
+            queryset = queryset.filter(created_at__lte=date_end + 'T23:59:59' if len(date_end) == 10 else date_end)
+        if order_no:
+            queryset = queryset.filter(order_no__icontains=order_no)
+        if phone_suffix:
+            queryset = queryset.filter(receiver_phone__endswith=phone_suffix)
 
         serializer = OrderSerializer(queryset, many=True)
         return success_response(serializer.data)

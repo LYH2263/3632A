@@ -14,6 +14,7 @@ import {
   type LowStockAlertResult,
   type Merchant,
   type Order,
+  type OrderFilterParams,
   type OrderStatus,
   type Product
 } from '@community-store/shared';
@@ -117,12 +118,25 @@ export class ApiDataSource implements DataSource {
     });
   }
 
-  async listOrdersByBuyer(buyerId: number): Promise<Order[]> {
-    return request<Order[]>(`/orders?buyer_id=${buyerId}`);
+  async listOrdersByBuyer(buyerId: number, filters?: OrderFilterParams): Promise<Order[]> {
+    const search = new URLSearchParams();
+    search.set('buyer_id', String(buyerId));
+    if (filters?.status) search.set('status', filters.status);
+    if (filters?.date_start) search.set('date_start', filters.date_start);
+    if (filters?.date_end) search.set('date_end', filters.date_end);
+    if (filters?.order_no) search.set('order_no', filters.order_no);
+    return request<Order[]>(`/orders?${search.toString()}`);
   }
 
-  async listOrdersByMerchant(merchantId: number): Promise<Order[]> {
-    return request<Order[]>(`/orders?merchant_id=${merchantId}`);
+  async listOrdersByMerchant(merchantId: number, filters?: OrderFilterParams): Promise<Order[]> {
+    const search = new URLSearchParams();
+    search.set('merchant_id', String(merchantId));
+    if (filters?.status) search.set('status', filters.status);
+    if (filters?.date_start) search.set('date_start', filters.date_start);
+    if (filters?.date_end) search.set('date_end', filters.date_end);
+    if (filters?.order_no) search.set('order_no', filters.order_no);
+    if (filters?.phone_suffix) search.set('phone_suffix', filters.phone_suffix);
+    return request<Order[]>(`/orders?${search.toString()}`);
   }
 
   async getOrder(orderId: number): Promise<Order | null> {

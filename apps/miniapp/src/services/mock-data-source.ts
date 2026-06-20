@@ -17,6 +17,7 @@ import {
   type LowStockAlertResult,
   type Merchant,
   type Order,
+  type OrderFilterParams,
   type OrderStatus,
   type Product
 } from '@community-store/shared';
@@ -44,6 +45,31 @@ function nextId(items: Array<{ id: number }>): number {
     return 1;
   }
   return Math.max(...items.map((item) => item.id)) + 1;
+}
+
+function applyOrderFilters(orders: Order[], filters?: OrderFilterParams): Order[] {
+  if (!filters) {
+    return orders;
+  }
+  let result = orders;
+  if (filters.status) {
+    result = result.filter((o) => o.status === filters.status);
+  }
+  if (filters.date_start) {
+    result = result.filter((o) => o.created_at >= filters.date_start!);
+  }
+  if (filters.date_end) {
+    const end = filters.date_end.includes('T') ? filters.date_end : filters.date_end + 'T23:59:59';
+    result = result.filter((o) => o.created_at <= end);
+  }
+  if (filters.order_no) {
+    const keyword = filters.order_no.toLowerCase();
+    result = result.filter((o) => o.order_no.toLowerCase().includes(keyword));
+  }
+  if (filters.phone_suffix) {
+    result = result.filter((o) => o.receiver_phone.endsWith(filters.phone_suffix!));
+  }
+  return result;
 }
 
 export class MockDataSource implements DataSource {
@@ -188,16 +214,18 @@ export class MockDataSource implements DataSource {
     return target;
   }
 
-  async listOrdersByBuyer(buyerId: number): Promise<Order[]> {
-    return readOrders()
+  async listOrdersByBuyer(buyerId: number, filters?: OrderFilterParams): Promise<Order[]> {
+    const all = readOrders()
       .filter((item) => item.buyer_id === buyerId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return applyOrderFilters(all, filters);
   }
 
-  async listOrdersByMerchant(merchantId: number): Promise<Order[]> {
-    return readOrders()
+  async listOrdersByMerchant(merchantId: number, filters?: OrderFilterParams): Promise<Order[]> {
+    const all = readOrders()
       .filter((item) => item.merchant_id === merchantId)
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return applyOrderFilters(all, filters);
   }
 
   async getOrder(orderId: number): Promise<Order | null> {

@@ -219,6 +219,31 @@
       <template #header>
         <div class="block-title" data-testid="web-order-card-title">订单管理</div>
       </template>
+      <div class="order-filter-bar">
+        <el-select v-model="orderFilters.status" placeholder="全部状态" clearable data-testid="web-order-filter-status" style="width: 120px;">
+          <el-option v-for="opt in orderStatusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+        </el-select>
+        <el-date-picker
+          v-model="orderFilters.date_start"
+          type="date"
+          placeholder="起始日期"
+          value-format="YYYY-MM-DD"
+          data-testid="web-order-filter-date-start"
+          style="width: 150px;"
+        />
+        <el-date-picker
+          v-model="orderFilters.date_end"
+          type="date"
+          placeholder="截止日期"
+          value-format="YYYY-MM-DD"
+          data-testid="web-order-filter-date-end"
+          style="width: 150px;"
+        />
+        <el-input v-model="orderFilters.order_no" placeholder="订单号搜索" clearable data-testid="web-order-filter-order-no" style="width: 160px;" />
+        <el-input v-model="orderFilters.phone_suffix" placeholder="手机尾号4位" clearable maxlength="4" data-testid="web-order-filter-phone-suffix" style="width: 130px;" />
+        <el-button type="primary" data-testid="web-order-filter-search" @click="applyOrderFilters">筛选</el-button>
+        <el-button data-testid="web-order-filter-reset" @click="resetOrderFilters">重置</el-button>
+      </div>
       <div class="table-wrapper">
       <el-table :data="orders" stripe data-testid="web-order-table">
         <el-table-column prop="order_no" label="订单号" min-width="220" />
@@ -230,6 +255,9 @@
         </el-table-column>
         <el-table-column label="收货信息" min-width="180">
           <template #default="scope">{{ scope.row.receiver_name }} / {{ scope.row.receiver_phone }}</template>
+        </el-table-column>
+        <el-table-column label="下单时间" width="180">
+          <template #default="scope">{{ scope.row.created_at?.replace('T', ' ').slice(0, 19) }}</template>
         </el-table-column>
         <el-table-column label="订单详情" width="120">
           <template #default="scope">
@@ -259,6 +287,9 @@
           </template>
         </el-table-column>
       </el-table>
+      <div v-if="!orders.length" class="order-empty" data-testid="web-order-empty">
+        <p class="muted">{{ hasActiveOrderFilters ? '没有符合条件的订单，请调整筛选条件' : '暂无订单' }}</p>
+      </div>
       </div>
     </el-card>
 
@@ -385,17 +416,19 @@ import {
   type LowStockAlertResult,
   type Merchant,
   type Order,
+  type OrderFilterParams,
   type OrderStatus,
   type Product,
   type User,
   type Weekday
 } from '@community-store/shared';
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { merchantService } from '../services/merchant-service';
 
 const router = useRouter();
+const route = useRoute();
 const authUser = ref<Omit<User, 'password'> | null>(merchantService.getAuthUser());
 
 const merchant = ref<Merchant | null>(null);
@@ -457,6 +490,56 @@ const sectionRefs: Record<string, typeof merchantSection> = {
 };
 
 const merchantId = computed(() => authUser.value?.merchant_id ?? 0);
+
+const orderStatusOptions: { label: string; value: OrderStatus }[] = [
+  { label: '待确认', value: 'pending' },
+  { label: '待配送', value: 'confirmed' },
+  { label: '配送中', value: 'delivering' },
+  { label: '已完成', value: 'completed' },
+  { label: '已取消', value: 'canceled' }
+];
+
+const orderFilters = reactive<OrderFilterParams>({
+  status: (route.query.status as OrderStatus) || undefined,
+  date_start: (route.query.date_start as string) || undefined,
+  date_end: (route.query.date_end as string) || undefined,
+  order_no: (route.query.order_no as string) || undefined,
+  phone_suffix: (route.query.phone_suffix as string) || undefined
+});
+
+const hasActiveOrderFilters = computed(() => {
+  return !!(orderFilters.status || orderFilters.date_start || orderFilters.date_end || orderFilters.order_no || orderFilters.phone_suffix);
+});
+
+function syncFiltersToRoute(): void {
+  const query: Record<string, string> = { ...route.query };
+  if (orderFilters.status) query.status = orderFilters.status;
+  else delete query.status;
+  if (orderFilters.date_start) query.date_start = orderFilters.date_start;
+  else delete query.date_start;
+  if (orderFilters.date_end) query.date_end = orderFilters.date_end;
+  else delete query.date_end;
+  if (orderFilters.order_no) query.order_no = orderFilters.order_no;
+  else delete query.order_no;
+  if (orderFilters.phone_suffix) query.phone_suffix = orderFilters.phone_suffix;
+  else delete query.phone_suffix;
+  router.replace({ query });
+}
+
+function applyOrderFilters(): void {
+  syncFiltersToRoute();
+  loadOrders();
+}
+
+function resetOrderFilters(): void {
+  orderFilters.status = undefined;
+  orderFilters.date_start = undefined;
+  orderFilters.date_end = undefined;
+  orderFilters.order_no = undefined;
+  orderFilters.phone_suffix = undefined;
+  syncFiltersToRoute();
+  loadOrders();
+}
 
 function scrollToSection(key: string): void {
   activeSection.value = key;
@@ -583,8 +666,21 @@ async function loadData(): Promise<void> {
 
   categories.value = await merchantService.listCategories(merchantId.value);
   products.value = await merchantService.listProducts(merchantId.value);
-  orders.value = await merchantService.listOrdersByMerchant(merchantId.value);
+  await loadOrders();
   lowStockAlert.value = await merchantService.getLowStockAlert();
+}
+
+async function loadOrders(): Promise<void> {
+  if (!merchantId.value) {
+    return;
+  }
+  const filters: OrderFilterParams = {};
+  if (orderFilters.status) filters.status = orderFilters.status;
+  if (orderFilters.date_start) filters.date_start = orderFilters.date_start;
+  if (orderFilters.date_end) filters.date_end = orderFilters.date_end;
+  if (orderFilters.order_no) filters.order_no = orderFilters.order_no;
+  if (orderFilters.phone_suffix) filters.phone_suffix = orderFilters.phone_suffix;
+  orders.value = await merchantService.listOrdersByMerchant(merchantId.value, filters);
 }
 
 async function saveMerchant(): Promise<void> {
@@ -797,5 +893,18 @@ onMounted(loadData);
 
 .muted {
   color: var(--el-text-color-secondary, #909399);
+}
+
+.order-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.order-empty {
+  text-align: center;
+  padding: 32px 0;
 }
 </style>

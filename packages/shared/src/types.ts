@@ -175,6 +175,14 @@ export interface FavoriteListResult {
   has_more: boolean;
 }
 
+export interface OrderFilterParams {
+  status?: OrderStatus;
+  date_start?: string;
+  date_end?: string;
+  order_no?: string;
+  phone_suffix?: string;
+}
+
 export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
@@ -188,8 +196,8 @@ export interface DataSource {
   getProduct(productId: number): Promise<Product | null>;
   createProduct(payload: Omit<Product, 'id'>): Promise<Product>;
   updateProduct(productId: number, payload: Partial<Product>): Promise<Product>;
-  listOrdersByBuyer(buyerId: number): Promise<Order[]>;
-  listOrdersByMerchant(merchantId: number): Promise<Order[]>;
+  listOrdersByBuyer(buyerId: number, filters?: OrderFilterParams): Promise<Order[]>;
+  listOrdersByMerchant(merchantId: number, filters?: OrderFilterParams): Promise<Order[]>;
   getOrder(orderId: number): Promise<Order | null>;
   createOrder(payload: CheckoutPayload): Promise<Order>;
   updateOrderStatus(orderId: number, status: OrderStatus): Promise<Order>;
