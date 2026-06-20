@@ -23,6 +23,40 @@
         >{{ sec.label }}</button>
       </div>
 
+    <el-card class="block" ref="categorySection" data-testid="web-category-card">
+      <template #header>
+        <div class="block-header">
+          <div class="block-title" data-testid="web-category-card-title">分类管理</div>
+          <el-button type="primary" data-testid="web-category-open-create" @click="openCategoryCreateDialog">新增分类</el-button>
+        </div>
+      </template>
+
+      <div class="table-wrapper">
+      <el-table :data="categories" stripe data-testid="web-category-table">
+        <el-table-column prop="name" label="分类名称" />
+        <el-table-column prop="sort_order" label="排序" width="100" />
+        <el-table-column prop="product_count" label="商品数量" width="120" />
+        <el-table-column label="操作" width="260">
+          <template #default="scope">
+            <el-space>
+              <el-button size="small" :data-testid="`web-category-edit-${scope.row.id}`" @click="openCategoryEditDialog(scope.row)">
+                编辑
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                :data-testid="`web-category-delete-${scope.row.id}`"
+                @click="deleteCategory(scope.row)"
+              >
+                删除
+              </el-button>
+            </el-space>
+          </template>
+        </el-table-column>
+      </el-table>
+      </div>
+    </el-card>
+
     <el-card class="block" ref="merchantSection" data-testid="web-merchant-card">
       <template #header>
         <div class="block-title" data-testid="web-merchant-card-title">店铺信息维护</div>
@@ -70,6 +104,9 @@
 
       <div class="table-wrapper">
       <el-table :data="products" stripe data-testid="web-product-table">
+        <el-table-column label="分类" width="120">
+          <template #default="scope">{{ getCategoryName(scope.row.category_id) }}</template>
+        </el-table-column>
         <el-table-column prop="name" label="商品" />
         <el-table-column label="价格">
           <template #default="scope">{{ formatMoney(scope.row.price) }}/{{ scope.row.unit }}</template>
@@ -153,6 +190,16 @@
       data-testid="web-product-dialog"
     >
       <el-form :model="productForm" label-width="90px" data-testid="web-product-form">
+        <el-form-item label="分类" required>
+          <el-select v-model="productForm.category_id" data-testid="web-product-category" placeholder="请选择分类" style="width: 100%;">
+            <el-option
+              v-for="cat in categories"
+              :key="cat.id"
+              :label="cat.name"
+              :value="cat.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="商品名">
           <el-input v-model="productForm.name" data-testid="web-product-name" />
         </el-form-item>
@@ -179,6 +226,27 @@
       <template #footer>
         <el-button data-testid="web-product-cancel" @click="productDialogVisible = false">取消</el-button>
         <el-button type="primary" data-testid="web-product-save" @click="saveProduct">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="categoryDialogVisible"
+      :title="editingCategoryId ? '编辑分类' : '新增分类'"
+      width="480px"
+      data-testid="web-category-dialog"
+    >
+      <el-form :model="categoryForm" label-width="90px" data-testid="web-category-form">
+        <el-form-item label="分类名称">
+          <el-input v-model="categoryForm.name" data-testid="web-category-name" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="categoryForm.sort_order" data-testid="web-category-sort-order" :min="0" :step="1" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button data-testid="web-category-cancel" @click="categoryDialogVisible = false">取消</el-button>
+        <el-button type="primary" data-testid="web-category-save" @click="saveCategory">保存</el-button>
       </template>
     </el-dialog>
 
@@ -228,6 +296,7 @@
 import {
   ORDER_STATUS_LABELS,
   STATUS_TRANSITIONS,
+  type Category,
   type Merchant,
   type Order,
   type OrderStatus,
@@ -243,6 +312,7 @@ const router = useRouter();
 const authUser = ref<Omit<User, 'password'> | null>(merchantService.getAuthUser());
 
 const merchant = ref<Merchant | null>(null);
+const categories = ref<Category[]>([]);
 const products = ref<Product[]>([]);
 const orders = ref<Order[]>([]);
 
@@ -257,9 +327,12 @@ const merchantForm = reactive({
 
 const productDialogVisible = ref(false);
 const editingProductId = ref<number | null>(null);
+const categoryDialogVisible = ref(false);
+const editingCategoryId = ref<number | null>(null);
 const orderDetailVisible = ref(false);
 const activeOrder = ref<Order | null>(null);
 const productForm = reactive({
+  category_id: 0,
   name: '',
   price: 0,
   unit: '份',
@@ -268,19 +341,26 @@ const productForm = reactive({
   image_url: '/images/products/default.jpg',
   description: ''
 });
+const categoryForm = reactive({
+  name: '',
+  sort_order: 0
+});
 
 const merchantSection = ref<{ $el: HTMLElement } | null>(null);
+const categorySection = ref<{ $el: HTMLElement } | null>(null);
 const productSection = ref<{ $el: HTMLElement } | null>(null);
 const orderSection = ref<{ $el: HTMLElement } | null>(null);
-const activeSection = ref('merchant');
+const activeSection = ref('category');
 
 const sections = [
+  { key: 'category', label: '分类管理' },
   { key: 'merchant', label: '店铺信息' },
   { key: 'product', label: '商品管理' },
   { key: 'order', label: '订单管理' }
 ];
 
 const sectionRefs: Record<string, typeof merchantSection> = {
+  category: categorySection,
   merchant: merchantSection,
   product: productSection,
   order: orderSection
@@ -310,6 +390,7 @@ function nextStatuses(status: OrderStatus): OrderStatus[] {
 
 function resetProductForm(): void {
   editingProductId.value = null;
+  productForm.category_id = categories.value[0]?.id ?? 0;
   productForm.name = '';
   productForm.price = 0;
   productForm.unit = '份';
@@ -317,6 +398,71 @@ function resetProductForm(): void {
   productForm.is_active = true;
   productForm.image_url = '/images/products/default.jpg';
   productForm.description = '';
+}
+
+function resetCategoryForm(): void {
+  editingCategoryId.value = null;
+  categoryForm.name = '';
+  categoryForm.sort_order = categories.value.length + 1;
+}
+
+function getCategoryName(categoryId: number): string {
+  const cat = categories.value.find((item) => item.id === categoryId);
+  return cat?.name ?? '未分类';
+}
+
+function openCategoryCreateDialog(): void {
+  resetCategoryForm();
+  categoryDialogVisible.value = true;
+}
+
+function openCategoryEditDialog(category: Category): void {
+  editingCategoryId.value = category.id;
+  categoryForm.name = category.name;
+  categoryForm.sort_order = category.sort_order;
+  categoryDialogVisible.value = true;
+}
+
+async function saveCategory(): Promise<void> {
+  if (!merchantId.value) {
+    return;
+  }
+  if (!categoryForm.name.trim()) {
+    ElMessage.error('分类名称不能为空');
+    return;
+  }
+
+  const payload = {
+    merchant_id: merchantId.value,
+    name: categoryForm.name.trim(),
+    sort_order: Number(categoryForm.sort_order)
+  };
+
+  try {
+    if (editingCategoryId.value) {
+      await merchantService.updateCategory(editingCategoryId.value, payload);
+      ElMessage.success('分类已更新');
+    } else {
+      await merchantService.createCategory(payload);
+      ElMessage.success('分类已新增');
+    }
+
+    categoryDialogVisible.value = false;
+    resetCategoryForm();
+    await loadData();
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+  }
+}
+
+async function deleteCategory(category: Category): Promise<void> {
+  try {
+    await merchantService.deleteCategory(category.id);
+    ElMessage.success('分类已删除');
+    await loadData();
+  } catch (error) {
+    ElMessage.error((error as Error).message);
+  }
 }
 
 function assignMerchantForm(value: Merchant): void {
@@ -341,6 +487,7 @@ async function loadData(): Promise<void> {
   }
   assignMerchantForm(merchant.value);
 
+  categories.value = await merchantService.listCategories(merchantId.value);
   products.value = await merchantService.listProducts(merchantId.value);
   orders.value = await merchantService.listOrdersByMerchant(merchantId.value);
 }
@@ -367,6 +514,7 @@ function openCreateDialog(): void {
 
 function openEditDialog(product: Product): void {
   editingProductId.value = product.id;
+  productForm.category_id = product.category_id;
   productForm.name = product.name;
   productForm.price = product.price;
   productForm.unit = product.unit;
@@ -381,6 +529,10 @@ async function saveProduct(): Promise<void> {
   if (!merchantId.value) {
     return;
   }
+  if (!productForm.category_id) {
+    ElMessage.error('请选择商品分类');
+    return;
+  }
   if (!productForm.name.trim()) {
     ElMessage.error('商品名不能为空');
     return;
@@ -388,6 +540,7 @@ async function saveProduct(): Promise<void> {
 
   const payload = {
     merchant_id: merchantId.value,
+    category_id: productForm.category_id,
     name: productForm.name.trim(),
     price: Number(productForm.price),
     unit: productForm.unit.trim() || '份',

@@ -12,6 +12,26 @@
           </div>
         </article>
 
+        <scroll-view scroll-x class="category-tabs" data-testid="shop-category-tabs">
+          <view
+            :class="['category-tab', { active: selectedCategoryId === 0 }]"
+            @click="selectCategory(0)"
+            :data-testid="'shop-category-all'"
+          >
+            全部
+          </view>
+          <view
+            v-for="cat in categories"
+            :key="cat.id"
+            :class="['category-tab', { active: selectedCategoryId === cat.id }]"
+            @click="selectCategory(cat.id)"
+            :data-testid="`shop-category-${cat.id}`"
+          >
+            {{ cat.name }}
+            <text v-if="cat.product_count" class="tab-count">{{ cat.product_count }}</text>
+          </view>
+        </scroll-view>
+
         <div class="search-bar">
           <label class="sr-only" for="shop-search-input">搜索商品</label>
           <input
@@ -81,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import type { Merchant, Product } from '@community-store/shared';
+import type { Category, Merchant, Product } from '@community-store/shared';
 import { computed, ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
@@ -95,20 +115,31 @@ const cartStore = useCartStore();
 const dataSource = getDataSource();
 
 const merchant = ref<Merchant | null>(null);
+const categories = ref<Category[]>([]);
 const products = ref<Product[]>([]);
 const keyword = ref('');
 const merchantId = ref(0);
+const selectedCategoryId = ref<number>(0);
 
 const displayProducts = computed(() => {
   const normalized = keyword.value.trim().toLowerCase();
-  const activeProducts = products.value.filter((item) => item.is_active);
-  if (!normalized) {
-    return activeProducts;
+  let result = products.value.filter((item) => item.is_active);
+
+  if (selectedCategoryId.value > 0) {
+    result = result.filter((item) => item.category_id === selectedCategoryId.value);
   }
-  return activeProducts.filter((item) =>
+
+  if (!normalized) {
+    return result;
+  }
+  return result.filter((item) =>
     item.name.toLowerCase().includes(normalized)
   );
 });
+
+function selectCategory(categoryId: number): void {
+  selectedCategoryId.value = categoryId;
+}
 
 const totalCount = computed(() => cartStore.totalCount());
 
@@ -127,10 +158,13 @@ async function loadData(): Promise<void> {
   await cartStore.ensureLoaded();
   merchant.value = await dataSource.getMerchant(merchantId.value);
   if (!merchant.value) {
+    categories.value = [];
     products.value = [];
     return;
   }
-  products.value = await dataSource.listProducts(merchant.value.id, keyword.value);
+  categories.value = await dataSource.listCategories(merchant.value.id);
+  const catId = selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined;
+  products.value = await dataSource.listProducts(merchant.value.id, keyword.value, catId);
 }
 
 async function changeQuantity(product: Product, step: number): Promise<void> {

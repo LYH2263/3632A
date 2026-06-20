@@ -7,6 +7,7 @@ import {
   type AddressCreatePayload,
   type AddressUpdatePayload,
   type Cart,
+  type Category,
   type CheckoutPayload,
   type DataSource,
   type LoginPayload,
@@ -20,12 +21,14 @@ import {
   ensureMockDB,
   readAddresses,
   readCart,
+  readCategories,
   readMerchants,
   readOrders,
   readProducts,
   readUsers,
   writeAddresses,
   writeCart,
+  writeCategories,
   writeMerchants,
   writeOrders,
   writeProducts
@@ -65,10 +68,83 @@ export class MockDataSource implements DataSource {
     return target;
   }
 
-  async listProducts(merchantId: number, keyword?: string): Promise<Product[]> {
+  async listCategories(merchantId: number): Promise<Category[]> {
+    const categories = readCategories()
+      .filter((item) => item.merchant_id === merchantId)
+      .sort((a, b) => a.sort_order - b.sort_order);
+
+    const products = readProducts();
+    return categories.map((cat) => ({
+      ...cat,
+      product_count: products.filter((p) => p.category_id === cat.id).length
+    }));
+  }
+
+  async getCategory(categoryId: number): Promise<Category | null> {
+    return readCategories().find((item) => item.id === categoryId) ?? null;
+  }
+
+  async createCategory(payload: Omit<Category, 'id' | 'created_at'>): Promise<Category> {
+    const categories = readCategories();
+    if (categories.some((c) => c.merchant_id === payload.merchant_id && c.name === payload.name)) {
+      throw new Error('分类名称已存在');
+    }
+
+    const created: Category = {
+      ...payload,
+      id: nextId(categories),
+      created_at: new Date().toISOString()
+    };
+    categories.push(created);
+    writeCategories(categories);
+    return created;
+  }
+
+  async updateCategory(
+    categoryId: number,
+    payload: Partial<Category>
+  ): Promise<Category> {
+    const categories = readCategories();
+    const target = categories.find((item) => item.id === categoryId);
+    if (!target) {
+      throw new Error('分类不存在');
+    }
+
+    if (payload.name && payload.name !== target.name) {
+      if (categories.some((c) => c.merchant_id === target.merchant_id && c.name === payload.name && c.id !== categoryId)) {
+        throw new Error('分类名称已存在');
+      }
+    }
+
+    Object.assign(target, payload);
+    writeCategories(categories);
+    return target;
+  }
+
+  async deleteCategory(categoryId: number): Promise<void> {
+    const categories = readCategories();
+    const target = categories.find((item) => item.id === categoryId);
+    if (!target) {
+      throw new Error('分类不存在');
+    }
+
+    const products = readProducts();
+    const productCount = products.filter((p) => p.category_id === categoryId).length;
+    if (productCount > 0) {
+      throw new Error(`该分类下有 ${productCount} 个商品，请先迁移或删除商品后再删除分类`);
+    }
+
+    const filtered = categories.filter((item) => item.id !== categoryId);
+    writeCategories(filtered);
+  }
+
+  async listProducts(merchantId: number, keyword?: string, categoryId?: number): Promise<Product[]> {
     const normalizedKeyword = keyword?.trim().toLowerCase() ?? '';
     return readProducts().filter((product) => {
       if (product.merchant_id !== merchantId) {
+        return false;
+      }
+      if (categoryId && product.category_id !== categoryId) {
         return false;
       }
       if (!normalizedKeyword) {

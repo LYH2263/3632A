@@ -28,9 +28,18 @@ export interface Merchant {
   is_open: boolean;
 }
 
+export interface Category {
+  id: number;
+  merchant_id: number;
+  name: string;
+  sort_order: number;
+  created_at: string;
+}
+
 export interface Product {
   id: number;
   merchant_id: number;
+  category_id: number;
   name: string;
   price: number;
   unit: string;
@@ -134,7 +143,12 @@ export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
   updateMerchant(merchantId: number, payload: Partial<Merchant>): Promise<Merchant>;
-  listProducts(merchantId: number, keyword?: string): Promise<Product[]>;
+  listCategories(merchantId: number): Promise<Category[]>;
+  getCategory(categoryId: number): Promise<Category | null>;
+  createCategory(payload: Omit<Category, 'id' | 'created_at'>): Promise<Category>;
+  updateCategory(categoryId: number, payload: Partial<Category>): Promise<Category>;
+  deleteCategory(categoryId: number): Promise<void>;
+  listProducts(merchantId: number, keyword?: string, categoryId?: number): Promise<Product[]>;
   getProduct(productId: number): Promise<Product | null>;
   createProduct(payload: Omit<Product, 'id'>): Promise<Product>;
   updateProduct(productId: number, payload: Partial<Product>): Promise<Product>;

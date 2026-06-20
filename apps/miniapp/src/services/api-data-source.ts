@@ -4,6 +4,7 @@ import {
   type AddressCreatePayload,
   type AddressUpdatePayload,
   type Cart,
+  type Category,
   type CheckoutPayload,
   type DataSource,
   type LoginPayload,
@@ -49,11 +50,45 @@ export class ApiDataSource implements DataSource {
     });
   }
 
-  async listProducts(merchantId: number, keyword?: string): Promise<Product[]> {
+  async listCategories(merchantId: number): Promise<Category[]> {
+    return request<Category[]>(`/categories?merchant_id=${merchantId}`);
+  }
+
+  async getCategory(categoryId: number): Promise<Category | null> {
+    return request<Category | null>(`/categories/${categoryId}`);
+  }
+
+  async createCategory(payload: Omit<Category, 'id' | 'created_at'>): Promise<Category> {
+    return request<Category>('/categories', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateCategory(
+    categoryId: number,
+    payload: Partial<Category>
+  ): Promise<Category> {
+    return request<Category>(`/categories/${categoryId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async deleteCategory(categoryId: number): Promise<void> {
+    await request<void>(`/categories/${categoryId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async listProducts(merchantId: number, keyword?: string, categoryId?: number): Promise<Product[]> {
     const search = new URLSearchParams();
     search.set('merchant_id', String(merchantId));
     if (keyword) {
       search.set('keyword', keyword);
+    }
+    if (categoryId) {
+      search.set('category_id', String(categoryId));
     }
     return request<Product[]>(`/products?${search.toString()}`);
   }

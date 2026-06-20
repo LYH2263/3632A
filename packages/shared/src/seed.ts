@@ -1,4 +1,4 @@
-import type { Cart, Merchant, Product, User } from './types';
+import type { Cart, Category, Merchant, Product, User } from './types';
 
 export const seedUsers: User[] = [
   {
@@ -52,10 +52,42 @@ export const seedMerchants: Merchant[] = [
   }
 ];
 
+export const seedCategories: Category[] = [
+  {
+    id: 1,
+    merchant_id: 1,
+    name: '新鲜水果',
+    sort_order: 1,
+    created_at: new Date(0).toISOString()
+  },
+  {
+    id: 2,
+    merchant_id: 1,
+    name: '精选礼盒',
+    sort_order: 2,
+    created_at: new Date(0).toISOString()
+  },
+  {
+    id: 3,
+    merchant_id: 2,
+    name: '乳品饮料',
+    sort_order: 1,
+    created_at: new Date(0).toISOString()
+  },
+  {
+    id: 4,
+    merchant_id: 2,
+    name: '日用百货',
+    sort_order: 2,
+    created_at: new Date(0).toISOString()
+  }
+];
+
 export const seedProducts: Product[] = [
   {
     id: 1001,
     merchant_id: 1,
+    category_id: 1,
     name: '红富士苹果',
     price: 6.8,
     unit: '斤',
@@ -67,6 +99,7 @@ export const seedProducts: Product[] = [
   {
     id: 1002,
     merchant_id: 1,
+    category_id: 1,
     name: '进口香蕉',
     price: 5.2,
     unit: '斤',
@@ -78,6 +111,7 @@ export const seedProducts: Product[] = [
   {
     id: 2001,
     merchant_id: 2,
+    category_id: 3,
     name: '纯牛奶',
     price: 12.9,
     unit: '瓶',
@@ -89,6 +123,7 @@ export const seedProducts: Product[] = [
   {
     id: 2002,
     merchant_id: 2,
+    category_id: 4,
     name: '鸡蛋',
     price: 9.8,
     unit: '盒',

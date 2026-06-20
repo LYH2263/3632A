@@ -2,6 +2,7 @@ import type { OrderStatus } from './types';
 
 export const STORAGE_KEYS = {
   merchants: 'community_store_merchants',
+  categories: 'community_store_categories',
   products: 'community_store_products',
   orders: 'community_store_orders',
   cart: 'community_store_cart',

@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from merchants.models import Merchant
-from products.models import Product
+from products.models import Category, Product
 from users.models import StoreUser
 from .models import Order
 
@@ -18,6 +18,12 @@ class OrderApiTests(TestCase):
             min_order_amount=20,
             delivery_fee=3,
             is_open=True
+        )
+
+        self.category = Category.objects.create(
+            merchant=self.merchant,
+            name='新鲜水果',
+            sort_order=1
         )
 
         self.buyer = StoreUser.objects.create(
@@ -39,6 +45,7 @@ class OrderApiTests(TestCase):
 
         self.product = Product.objects.create(
             merchant=self.merchant,
+            category=self.category,
             name='苹果',
             price=10,
             unit='斤',

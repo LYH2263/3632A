@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
 
 from merchants.models import Merchant
-from products.models import Product
+from products.models import Category, Product
 from users.models import StoreUser
 
 
@@ -34,9 +34,31 @@ class Command(BaseCommand):
             }
         )
 
+        cat_a_fruit, _ = Category.objects.get_or_create(
+            merchant=merchant_a,
+            name='新鲜水果',
+            defaults={'sort_order': 1}
+        )
+        cat_a_gift, _ = Category.objects.get_or_create(
+            merchant=merchant_a,
+            name='精选礼盒',
+            defaults={'sort_order': 2}
+        )
+        cat_b_dairy, _ = Category.objects.get_or_create(
+            merchant=merchant_b,
+            name='乳品饮料',
+            defaults={'sort_order': 1}
+        )
+        cat_b_daily, _ = Category.objects.get_or_create(
+            merchant=merchant_b,
+            name='日用百货',
+            defaults={'sort_order': 2}
+        )
+
         products = [
             {
                 'merchant': merchant_a,
+                'category': cat_a_fruit,
                 'name': '红富士苹果',
                 'price': 6.8,
                 'unit': '斤',
@@ -47,6 +69,7 @@ class Command(BaseCommand):
             },
             {
                 'merchant': merchant_a,
+                'category': cat_a_fruit,
                 'name': '进口香蕉',
                 'price': 5.2,
                 'unit': '斤',
@@ -57,6 +80,7 @@ class Command(BaseCommand):
             },
             {
                 'merchant': merchant_b,
+                'category': cat_b_dairy,
                 'name': '纯牛奶',
                 'price': 12.9,
                 'unit': '瓶',
@@ -67,6 +91,7 @@ class Command(BaseCommand):
             },
             {
                 'merchant': merchant_b,
+                'category': cat_b_daily,
                 'name': '鸡蛋',
                 'price': 9.8,
                 'unit': '盒',
@@ -82,6 +107,7 @@ class Command(BaseCommand):
                 merchant=item['merchant'],
                 name=item['name'],
                 defaults={
+                    'category': item['category'],
                     'price': item['price'],
                     'unit': item['unit'],
                     'stock': item['stock'],
