@@ -149,6 +149,8 @@ export class ApiDataSource implements DataSource {
       method: 'POST',
       body: JSON.stringify({
         ...payload,
+        latitude: payload.latitude ?? null,
+        longitude: payload.longitude ?? null,
         cart_items: cart.items
       })
     });

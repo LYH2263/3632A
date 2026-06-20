@@ -35,6 +35,9 @@ export interface Merchant {
   delivery_note: string;
   min_order_amount: number;
   delivery_fee: number;
+  delivery_radius_km: number;
+  latitude?: number | null;
+  longitude?: number | null;
   is_open: boolean;
   business_hours: BusinessHours;
   low_stock_threshold: number;
@@ -113,6 +116,8 @@ export interface CheckoutPayload {
   receiver_name: string;
   receiver_phone: string;
   receiver_address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   remark?: string;
 }
 
@@ -121,6 +126,9 @@ export interface CartValidationResult {
   errors: string[];
   items_amount: number;
   total_amount: number;
+  delivery_fee?: number;
+  distance_km?: number | null;
+  in_delivery_range?: boolean;
 }
 
 export interface LoginPayload {
@@ -139,6 +147,8 @@ export interface Address {
   receiver_name: string;
   receiver_phone: string;
   receiver_address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default: boolean;
   created_at: string;
   updated_at: string;
@@ -148,6 +158,8 @@ export interface AddressCreatePayload {
   receiver_name: string;
   receiver_phone: string;
   receiver_address: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default?: boolean;
 }
 
@@ -155,6 +167,8 @@ export interface AddressUpdatePayload {
   receiver_name?: string;
   receiver_phone?: string;
   receiver_address?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   is_default?: boolean;
 }
 

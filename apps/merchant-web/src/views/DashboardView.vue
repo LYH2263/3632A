@@ -107,6 +107,32 @@
         <el-form-item label="配送费">
           <el-input-number v-model="merchantForm.delivery_fee" data-testid="web-merchant-delivery-fee" :min="0" :step="1" />
         </el-form-item>
+        <el-form-item label="配送半径">
+          <el-input-number
+            v-model="merchantForm.delivery_radius_km"
+            data-testid="web-merchant-delivery-radius"
+            :min="0"
+            :max="100"
+            :step="1"
+          />
+          <div class="form-tip muted">配送范围半径（公里，整数），0 表示不限制配送范围，需同时设置店铺坐标才可生效校验</div>
+        </el-form-item>
+        <el-form-item label="店铺纬度">
+          <el-input
+            v-model="merchantForm.latitude"
+            data-testid="web-merchant-latitude"
+            placeholder="例如：39.9042"
+          />
+          <div class="form-tip muted">店铺位置纬度（-90 到 90），与经度、配送半径配合进行范围校验</div>
+        </el-form-item>
+        <el-form-item label="店铺经度">
+          <el-input
+            v-model="merchantForm.longitude"
+            data-testid="web-merchant-longitude"
+            placeholder="例如：116.4074"
+          />
+          <div class="form-tip muted">店铺位置经度（-180 到 180），与纬度、配送半径配合进行范围校验</div>
+        </el-form-item>
         <el-form-item label="库存预警阈值">
           <el-input-number
             v-model="merchantForm.low_stock_threshold"
@@ -410,6 +436,9 @@ import {
   WEEKDAY_LABELS,
   getDefaultBusinessHours,
   validateBusinessHours,
+  validateDeliveryRadius,
+  isValidLatitude,
+  isValidLongitude,
   type BusinessHours,
   type Category,
   type DayHours,
@@ -443,6 +472,9 @@ const merchantForm = reactive({
   delivery_note: '',
   min_order_amount: 0,
   delivery_fee: 0,
+  delivery_radius_km: 0,
+  latitude: '' as string | number | null,
+  longitude: '' as string | number | null,
   is_open: true,
   business_hours: getDefaultBusinessHours() as BusinessHours,
   low_stock_threshold: 5
@@ -644,6 +676,9 @@ function assignMerchantForm(value: Merchant): void {
   merchantForm.delivery_note = value.delivery_note;
   merchantForm.min_order_amount = value.min_order_amount;
   merchantForm.delivery_fee = value.delivery_fee;
+  merchantForm.delivery_radius_km = value.delivery_radius_km ?? 0;
+  merchantForm.latitude = value.latitude ?? '';
+  merchantForm.longitude = value.longitude ?? '';
   merchantForm.is_open = value.is_open;
   merchantForm.low_stock_threshold = value.low_stock_threshold ?? 5;
   if (value.business_hours) {
@@ -694,12 +729,40 @@ async function saveMerchant(): Promise<void> {
     return;
   }
 
+  const radiusError = validateDeliveryRadius(Number(merchantForm.delivery_radius_km));
+  if (radiusError) {
+    ElMessage.error(radiusError);
+    return;
+  }
+
+  let latVal: number | null = null;
+  let lngVal: number | null = null;
+
+  if (merchantForm.latitude !== '' && merchantForm.latitude !== null) {
+    latVal = Number(merchantForm.latitude);
+    if (!isValidLatitude(latVal)) {
+      ElMessage.error('店铺纬度格式错误，应为 -90 到 90 之间的数字');
+      return;
+    }
+  }
+
+  if (merchantForm.longitude !== '' && merchantForm.longitude !== null) {
+    lngVal = Number(merchantForm.longitude);
+    if (!isValidLongitude(lngVal)) {
+      ElMessage.error('店铺经度格式错误，应为 -180 到 180 之间的数字');
+      return;
+    }
+  }
+
   merchant.value = await merchantService.updateMerchant(merchant.value.id, {
     phone: merchantForm.phone.trim(),
     address: merchantForm.address.trim(),
     delivery_note: merchantForm.delivery_note,
     min_order_amount: Number(merchantForm.min_order_amount),
     delivery_fee: Number(merchantForm.delivery_fee),
+    delivery_radius_km: Number(merchantForm.delivery_radius_km),
+    latitude: latVal,
+    longitude: lngVal,
     is_open: merchantForm.is_open,
     low_stock_threshold: Number(merchantForm.low_stock_threshold),
     business_hours: JSON.parse(JSON.stringify(merchantForm.business_hours))

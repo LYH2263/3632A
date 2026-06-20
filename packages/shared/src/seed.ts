@@ -56,6 +56,9 @@ export const seedMerchants: Merchant[] = [
     delivery_note: '2 公里内 30 分钟配送',
     min_order_amount: 25,
     delivery_fee: 3,
+    delivery_radius_km: 2,
+    latitude: 39.9042,
+    longitude: 116.4074,
     is_open: true,
     business_hours: fruitStoreHours,
     low_stock_threshold: 5
@@ -68,6 +71,9 @@ export const seedMerchants: Merchant[] = [
     delivery_note: '晚 10 点前配送',
     min_order_amount: 18,
     delivery_fee: 2,
+    delivery_radius_km: 3,
+    latitude: 39.9055,
+    longitude: 116.4088,
     is_open: true,
     business_hours: marketHours,
     low_stock_threshold: 5

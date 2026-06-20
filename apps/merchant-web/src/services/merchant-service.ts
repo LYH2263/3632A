@@ -72,7 +72,7 @@ function writeAuthSession(session: AuthSession): void {
   writeJSON(AUTH_KEY, session);
 }
 
-const MOCK_DB_VERSION = 4;
+const MOCK_DB_VERSION = 5;
 const VERSION_KEY = 'community_store_mock_db_version';
 
 function ensureMockStorage(): void {
@@ -246,8 +246,12 @@ class MerchantService {
       delivery_note: payload.delivery_note?.trim() || '请联系商家协商配送',
       min_order_amount: Number(payload.min_order_amount ?? 0),
       delivery_fee: Number(payload.delivery_fee ?? 0),
+      delivery_radius_km: 0,
+      latitude: null,
+      longitude: null,
       is_open: payload.is_open ?? true,
-      business_hours: getDefaultBusinessHours()
+      business_hours: getDefaultBusinessHours(),
+      low_stock_threshold: 5
     };
     merchants.push(merchant);
     writeMerchants(merchants);

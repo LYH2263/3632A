@@ -65,6 +65,9 @@ class RegisterMerchantView(APIView):
             delivery_note=payload['delivery_note'] or '请联系商家协商配送',
             min_order_amount=payload['min_order_amount'],
             delivery_fee=payload['delivery_fee'],
+            delivery_radius_km=0,
+            latitude=None,
+            longitude=None,
             is_open=payload['is_open']
         )
 
@@ -116,6 +119,8 @@ class AddressListView(APIView):
             receiver_name=payload['receiver_name'],
             receiver_phone=payload['receiver_phone'],
             receiver_address=payload['receiver_address'],
+            latitude=payload.get('latitude'),
+            longitude=payload.get('longitude'),
             is_default=is_first or payload.get('is_default', False)
         )
 
@@ -161,6 +166,10 @@ class AddressDetailView(APIView):
             address.receiver_phone = payload['receiver_phone']
         if 'receiver_address' in payload:
             address.receiver_address = payload['receiver_address']
+        if 'latitude' in payload:
+            address.latitude = payload['latitude']
+        if 'longitude' in payload:
+            address.longitude = payload['longitude']
 
         if 'is_default' in payload and payload['is_default']:
             set_default_address_exclusive(user, address.id)

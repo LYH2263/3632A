@@ -37,6 +37,8 @@ class Address(models.Model):
     receiver_name = models.CharField(max_length=50)
     receiver_phone = models.CharField(max_length=20)
     receiver_address = models.CharField(max_length=255)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

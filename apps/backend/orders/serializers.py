@@ -11,6 +11,22 @@ class CartItemSerializer(serializers.Serializer):
 class CartValidateSerializer(serializers.Serializer):
     merchant_id = serializers.IntegerField()
     cart_items = CartItemSerializer(many=True)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
+
+    def validate_latitude(self, value):
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise serializers.ValidationError('纬度必须在 -90 到 90 之间')
+        return value
+
+    def validate_longitude(self, value):
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise serializers.ValidationError('经度必须在 -180 到 180 之间')
+        return value
 
 
 class OrderCreateSerializer(CartValidateSerializer):

@@ -44,6 +44,12 @@
 
           <p data-testid="checkout-items-amount">商品合计：<strong class="price">{{ formatMoney(itemsAmount) }}</strong></p>
           <p data-testid="checkout-delivery-fee">配送费：<strong class="price">{{ formatMoney(merchant.delivery_fee) }}</strong></p>
+          <p v-if="deliveryInfo" class="muted" data-testid="checkout-delivery-range">
+            📍 {{ deliveryInfo }}
+          </p>
+          <p v-if="deliveryDistanceText !== null" class="muted" data-testid="checkout-distance">
+            与店铺距离：{{ deliveryDistanceText }}
+          </p>
           <p data-testid="checkout-total-amount">总金额：<strong class="price">{{ formatMoney(totalAmount) }}</strong></p>
           <p v-if="itemsAmount < merchant.min_order_amount" class="muted" data-testid="checkout-min-order-tip">
             当前未达到起送价：{{ formatMoney(merchant.min_order_amount) }}
@@ -103,6 +109,28 @@
           </div>
         </article>
 
+        <article class="card" v-if="hasDeliveryRangeConfig" data-testid="checkout-coord-card">
+          <h3>收货坐标（用于配送范围校验）</h3>
+          <div class="field">
+            <label for="checkout-coord">地址坐标（纬度,经度）</label>
+            <input
+              id="checkout-coord"
+              v-model="form.coordText"
+              data-testid="checkout-coord"
+              placeholder="例如：39.9042,116.4074"
+              @blur="parseCoordInput"
+              @change="parseCoordInput"
+            />
+            <p v-if="coordError" class="field-error" data-testid="checkout-coord-error">{{ coordError }}</p>
+            <p v-else-if="deliveryDistanceText !== null" class="muted">
+              已计算距离店铺：{{ deliveryDistanceText }}
+            </p>
+            <p v-else class="muted">
+              请输入坐标以校验是否在 {{ merchant?.delivery_radius_km }} 公里配送范围内
+            </p>
+          </div>
+        </article>
+
         <article class="card" data-testid="checkout-form-card">
           <h3>订单备注</h3>
           <div class="field">
@@ -138,6 +166,11 @@
 import {
   validateCartForCheckout,
   validateCheckoutPayload,
+  formatDistanceKm,
+  parseCoord,
+  haversineDistanceKm,
+  isValidLatitude,
+  isValidLongitude,
   type Address,
   type CheckoutPayload,
   type Merchant,
@@ -164,8 +197,13 @@ const submitFeedback = ref('');
 const addresses = ref<Address[]>([]);
 const selectedAddress = ref<Address | null>(null);
 const form = reactive({
-  remark: ''
+  remark: '',
+  coordText: ''
 });
+
+const coordLat = ref<number | null>(null);
+const coordLng = ref<number | null>(null);
+const coordError = ref('');
 
 const routeMerchantId = ref(0);
 
@@ -207,6 +245,34 @@ const totalAmount = computed(() => {
   return itemsAmount.value + merchant.value.delivery_fee;
 });
 
+const hasDeliveryRangeConfig = computed(() => {
+  if (!merchant.value) return false;
+  const radius = merchant.value.delivery_radius_km ?? 0;
+  const lat = merchant.value.latitude;
+  const lng = merchant.value.longitude;
+  return radius > 0 && lat != null && lng != null;
+});
+
+const deliveryInfo = computed(() => {
+  if (!merchant.value) return '';
+  const radius = merchant.value.delivery_radius_km ?? 0;
+  if (radius <= 0) return '';
+  return `配送半径 ${radius} 公里内`;
+});
+
+const deliveryDistanceText = computed(() => {
+  if (!merchant.value || coordLat.value == null || coordLng.value == null) return null;
+  const mLat = merchant.value.latitude;
+  const mLng = merchant.value.longitude;
+  if (mLat == null || mLng == null) return null;
+  if (!isValidLatitude(mLat) || !isValidLongitude(mLng)) return null;
+  const parsed = parseCoord(`${coordLat.value},${coordLng.value}`);
+  if (!parsed) return null;
+  return formatDistanceKm(
+    haversineDistanceKm({ lat: mLat, lng: mLng }, parsed)
+  );
+});
+
 async function loadData(): Promise<void> {
   await cartStore.ensureLoaded();
   if (!merchantId.value) {
@@ -234,9 +300,38 @@ async function loadAddresses(): Promise<void> {
         selectedAddress.value = updated;
       }
     }
+    syncCoordFromAddress();
   } catch (error) {
     // 地址加载失败不影响主流程
   }
+}
+
+function syncCoordFromAddress(): void {
+  const addr = selectedAddress.value;
+  if (addr && addr.latitude != null && addr.longitude != null) {
+    coordLat.value = addr.latitude;
+    coordLng.value = addr.longitude;
+    form.coordText = `${addr.latitude},${addr.longitude}`;
+    coordError.value = '';
+  }
+}
+
+function parseCoordInput(): void {
+  coordError.value = '';
+  if (!form.coordText.trim()) {
+    coordLat.value = null;
+    coordLng.value = null;
+    return;
+  }
+  const parsed = parseCoord(form.coordText);
+  if (!parsed) {
+    coordError.value = '坐标格式错误，应为：纬度,经度（例如 39.9042,116.4074）';
+    coordLat.value = null;
+    coordLng.value = null;
+    return;
+  }
+  coordLat.value = parsed.lat;
+  coordLng.value = parsed.lng;
 }
 
 async function adjust(product: Product, step: number): Promise<void> {
@@ -277,6 +372,13 @@ async function submitOrder(): Promise<void> {
     return;
   }
 
+  parseCoordInput();
+  if (coordError.value) {
+    submitFeedback.value = coordError.value;
+    showMessage(coordError.value);
+    return;
+  }
+
   try {
     const payload: CheckoutPayload = {
       buyer_id: sessionStore.state.user.id,
@@ -284,6 +386,8 @@ async function submitOrder(): Promise<void> {
       receiver_name: selectedAddress.value.receiver_name,
       receiver_phone: selectedAddress.value.receiver_phone,
       receiver_address: selectedAddress.value.receiver_address,
+      latitude: coordLat.value,
+      longitude: coordLng.value,
       remark: form.remark
     };
 
@@ -291,7 +395,9 @@ async function submitOrder(): Promise<void> {
     const cartValidation = validateCartForCheckout(
       cartStore.state.cart,
       merchant.value,
-      products.value
+      products.value,
+      coordLat.value,
+      coordLng.value
     );
 
     const errors = [...payloadErrors, ...cartValidation.errors];
@@ -331,6 +437,12 @@ onShow(loadData);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin: 4px 0 0;
 }
 
 .checkout-address-header h3 {

@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from math import sin, cos, sqrt, asin, radians
 from random import randint
 from django.db import transaction
 from django.utils import timezone
@@ -26,24 +27,77 @@ STATUS_TRANSITIONS = {
     'canceled': []
 }
 
+EARTH_RADIUS_KM = 6371
+
 
 def generate_order_no() -> str:
     now = timezone.now()
     return f"CS{now.strftime('%Y%m%d%H%M%S')}{randint(1000, 9999)}"
 
 
-def validate_cart(merchant: Merchant, cart_items: list[dict]) -> tuple[list[str], list[dict], Decimal]:
+def haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * asin(sqrt(a))
+
+
+def format_distance_km(distance_km: float) -> str:
+    if distance_km < 1:
+        return f"{distance_km * 1000:.0f} 米"
+    return f"{distance_km:.2f} 公里"
+
+
+def validate_delivery_range(
+    merchant: Merchant,
+    buyer_lat: float | None,
+    buyer_lng: float | None
+) -> tuple[list[str], float | None]:
+    errors: list[str] = []
+    distance_km: float | None = None
+
+    radius_km = getattr(merchant, 'delivery_radius_km', 0) or 0
+    if radius_km <= 0:
+        return errors, distance_km
+
+    merchant_lat = getattr(merchant, 'latitude', None)
+    merchant_lng = getattr(merchant, 'longitude', None)
+    if merchant_lat is None or merchant_lng is None:
+        return errors, distance_km
+
+    if buyer_lat is None or buyer_lng is None:
+        errors.append(f"请填写收货地址坐标（纬度,经度）以校验是否在 {radius_km} 公里配送范围内")
+        return errors, distance_km
+
+    distance_km = haversine_distance_km(merchant_lat, merchant_lng, buyer_lat, buyer_lng)
+    if distance_km > radius_km:
+        errors.append(
+            f"超出配送范围：当前距离 {format_distance_km(distance_km)}，配送半径 {radius_km} 公里"
+        )
+
+    return errors, distance_km
+
+
+def validate_cart(
+    merchant: Merchant,
+    cart_items: list[dict],
+    buyer_lat: float | None = None,
+    buyer_lng: float | None = None
+) -> tuple[list[str], list[dict], Decimal, float | None]:
     errors: list[str] = []
     snapshots: list[dict] = []
     items_amount = Decimal('0')
 
     if not cart_items:
         errors.append('购物车为空')
-        return errors, snapshots, items_amount
+        return errors, snapshots, items_amount, None
 
     if not merchant.is_merchant_open():
         errors.append('商家当前非营业时段，暂无法下单')
-        return errors, snapshots, items_amount
+        return errors, snapshots, items_amount, None
+
+    range_errors, distance_km = validate_delivery_range(merchant, buyer_lat, buyer_lng)
+    errors.extend(range_errors)
 
     for item in cart_items:
         product = Product.objects.filter(id=item['product_id'], merchant=merchant).first()
@@ -81,7 +135,7 @@ def validate_cart(merchant: Merchant, cart_items: list[dict]) -> tuple[list[str]
     if items_amount < merchant.min_order_amount:
         errors.append(f"未达到起送价：¥{merchant.min_order_amount:.2f}")
 
-    return errors, snapshots, items_amount
+    return errors, snapshots, items_amount, distance_km
 
 
 def require_merchant_permission(request, merchant_id: int):
@@ -99,26 +153,38 @@ class CartValidateView(APIView):
     def post(self, request):
         serializer = CartValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-        merchant = Merchant.objects.filter(id=serializer.validated_data['merchant_id']).first()
+        merchant = Merchant.objects.filter(id=data['merchant_id']).first()
         if merchant is None:
             return error_response('商家不存在', status_code=404)
 
-        errors, snapshots, items_amount = validate_cart(
+        buyer_lat = data.get('latitude')
+        buyer_lng = data.get('longitude')
+
+        errors, snapshots, items_amount, distance_km = validate_cart(
             merchant,
-            serializer.validated_data['cart_items']
+            data['cart_items'],
+            buyer_lat,
+            buyer_lng
         )
         if errors:
             return error_response('购物车校验失败', errors=errors)
 
         total_amount = items_amount + merchant.delivery_fee
+        radius_km = getattr(merchant, 'delivery_radius_km', 0) or 0
+        in_range = distance_km is None or radius_km <= 0 or distance_km <= radius_km
+
         return success_response(
             {
                 'valid': True,
                 'items_snapshot': snapshots,
                 'items_amount': float(items_amount),
                 'delivery_fee': float(merchant.delivery_fee),
-                'total_amount': float(total_amount)
+                'total_amount': float(total_amount),
+                'distance_km': distance_km,
+                'in_delivery_range': in_range,
+                'delivery_radius_km': radius_km
             }
         )
 
@@ -201,7 +267,15 @@ class OrderListView(APIView):
         if merchant is None:
             return error_response('商家不存在', status_code=404)
 
-        errors, snapshots, items_amount = validate_cart(merchant, payload['cart_items'])
+        buyer_lat = payload.get('latitude')
+        buyer_lng = payload.get('longitude')
+
+        errors, snapshots, items_amount, distance_km = validate_cart(
+            merchant,
+            payload['cart_items'],
+            buyer_lat,
+            buyer_lng
+        )
         if errors:
             return error_response('下单失败', errors=errors)
 

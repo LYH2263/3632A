@@ -57,6 +57,8 @@ class AddressSerializer(serializers.ModelSerializer):
             'receiver_name',
             'receiver_phone',
             'receiver_address',
+            'latitude',
+            'longitude',
             'is_default',
             'created_at',
             'updated_at'
@@ -68,6 +70,8 @@ class AddressCreateSerializer(serializers.Serializer):
     receiver_name = serializers.CharField(max_length=50)
     receiver_phone = serializers.CharField(max_length=20)
     receiver_address = serializers.CharField(max_length=255)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
     is_default = serializers.BooleanField(required=False, default=False)
 
     def validate_receiver_phone(self, value: str) -> str:
@@ -75,14 +79,44 @@ class AddressCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError('手机号格式错误')
         return value
 
+    def validate_latitude(self, value):
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise serializers.ValidationError('纬度必须在 -90 到 90 之间')
+        return value
+
+    def validate_longitude(self, value):
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise serializers.ValidationError('经度必须在 -180 到 180 之间')
+        return value
+
 
 class AddressUpdateSerializer(serializers.Serializer):
     receiver_name = serializers.CharField(max_length=50, required=False)
     receiver_phone = serializers.CharField(max_length=20, required=False)
     receiver_address = serializers.CharField(max_length=255, required=False)
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
     is_default = serializers.BooleanField(required=False)
 
     def validate_receiver_phone(self, value: str) -> str:
         if not is_valid_phone(value):
             raise serializers.ValidationError('手机号格式错误')
+        return value
+
+    def validate_latitude(self, value):
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise serializers.ValidationError('纬度必须在 -90 到 90 之间')
+        return value
+
+    def validate_longitude(self, value):
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise serializers.ValidationError('经度必须在 -180 到 180 之间')
         return value

@@ -40,6 +40,19 @@
             ></textarea>
           </div>
 
+          <div class="field">
+            <label for="address-coord">地址坐标（可选）</label>
+            <input
+              id="address-coord"
+              v-model="form.coord_text"
+              data-testid="address-coord"
+              placeholder="例如：39.9042,116.4074（纬度,经度）"
+            />
+            <p class="muted" style="font-size: 12px; margin-top: 4px;">
+              坐标用于配送范围校验，不填写则下单时手动输入
+            </p>
+          </div>
+
           <div class="field field-switch">
             <label for="address-is-default">设为默认地址</label>
             <switch
@@ -71,7 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import { isValidPhone, type Address } from '@community-store/shared';
+import {
+  isValidPhone,
+  parseCoord,
+  isValidLatitude,
+  isValidLongitude,
+  type Address
+} from '@community-store/shared';
 import { reactive, ref } from 'vue';
 import { onLoad } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
@@ -90,11 +109,16 @@ const form = reactive({
   receiver_name: '',
   receiver_phone: '',
   receiver_address: '',
+  coord_text: '',
   is_default: false
 });
 
-function validateForm(): string[] {
+const coordError = ref('');
+
+function validateForm(): { errors: string[]; lat: number | null; lng: number | null } {
   const errors: string[] = [];
+  let lat: number | null = null;
+  let lng: number | null = null;
 
   if (!form.receiver_name.trim()) {
     errors.push('收货人姓名必填');
@@ -110,7 +134,17 @@ function validateForm(): string[] {
     errors.push('详细地址必填');
   }
 
-  return errors;
+  if (form.coord_text.trim()) {
+    const parsed = parseCoord(form.coord_text);
+    if (!parsed) {
+      errors.push('坐标格式错误，应为：纬度,经度（例如 39.9042,116.4074）');
+    } else {
+      lat = parsed.lat;
+      lng = parsed.lng;
+    }
+  }
+
+  return { errors, lat, lng };
 }
 
 async function loadAddress(): Promise<void> {
@@ -124,6 +158,9 @@ async function loadAddress(): Promise<void> {
       form.receiver_phone = addr.receiver_phone;
       form.receiver_address = addr.receiver_address;
       form.is_default = addr.is_default;
+      if (addr.latitude != null && addr.longitude != null) {
+        form.coord_text = `${addr.latitude},${addr.longitude}`;
+      }
     }
   } catch (error) {
     showMessage((error as Error).message || '加载地址失败');
@@ -136,7 +173,7 @@ async function handleSubmit(): Promise<void> {
   }
 
   feedback.value = '';
-  const errors = validateForm();
+  const { errors, lat, lng } = validateForm();
   if (errors.length) {
     feedback.value = errors[0];
     showMessage(errors[0]);
@@ -150,6 +187,8 @@ async function handleSubmit(): Promise<void> {
         receiver_name: form.receiver_name,
         receiver_phone: form.receiver_phone,
         receiver_address: form.receiver_address,
+        latitude: lat,
+        longitude: lng,
         is_default: form.is_default
       });
       showMessage('修改成功');
@@ -158,6 +197,8 @@ async function handleSubmit(): Promise<void> {
         receiver_name: form.receiver_name,
         receiver_phone: form.receiver_phone,
         receiver_address: form.receiver_address,
+        latitude: lat,
+        longitude: lng,
         is_default: form.is_default
       });
       showMessage('添加成功');

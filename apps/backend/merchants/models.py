@@ -32,6 +32,9 @@ def is_time_in_range(current_minutes, start, end):
     return current_minutes >= start or current_minutes < end
 
 
+DEFAULT_DELIVERY_RADIUS_KM = 0
+
+
 class Merchant(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20)
@@ -39,6 +42,9 @@ class Merchant(models.Model):
     delivery_note = models.CharField(max_length=255)
     min_order_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    delivery_radius_km = models.IntegerField(default=DEFAULT_DELIVERY_RADIUS_KM)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     is_open = models.BooleanField(default=True)
     business_hours = models.JSONField(default=dict)
     low_stock_threshold = models.IntegerField(default=DEFAULT_LOW_STOCK_THRESHOLD)

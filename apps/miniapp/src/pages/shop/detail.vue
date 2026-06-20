@@ -18,6 +18,12 @@
           <div class="shop-header-meta">
             <p class="muted" data-testid="shop-merchant-phone">📞 {{ merchant.phone }}</p>
             <p class="muted" data-testid="shop-merchant-note">🚚 {{ merchant.delivery_note }}</p>
+            <p class="muted" v-if="merchant.delivery_radius_km > 0" data-testid="shop-merchant-radius">
+              📍 配送范围：{{ merchant.delivery_radius_km }} 公里内
+            </p>
+            <p class="muted" data-testid="shop-merchant-fee">
+              💰 配送费：{{ formatMoney(merchant.delivery_fee) }} / 起送价：{{ formatMoney(merchant.min_order_amount) }}
+            </p>
             <p class="muted">🕐 今日：{{ todayHoursText }}</p>
           </div>
         </article>

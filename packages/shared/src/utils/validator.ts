@@ -10,6 +10,12 @@ import type {
 } from '../types';
 import { toMoney } from './number';
 import { isMerchantOpen } from './businessHours';
+import {
+  haversineDistanceKm,
+  formatDistanceKm,
+  isValidLatitude,
+  isValidLongitude
+} from './distance';
 
 export function isValidPhone(phone: string): boolean {
   return /^1[3-9]\d{9}$/.test(phone);
@@ -73,10 +79,14 @@ function validateCartItems(
 export function validateCartForCheckout(
   cart: Cart,
   merchant: Merchant,
-  products: Product[]
+  products: Product[],
+  buyerLat?: number | null,
+  buyerLng?: number | null
 ): CartValidationResult {
   const productMap = buildProductMap(products);
   const errors: string[] = [];
+  let distanceKm: number | null = null;
+  let inDeliveryRange = true;
 
   if (!cart.items.length) {
     errors.push('购物车为空');
@@ -90,6 +100,30 @@ export function validateCartForCheckout(
     errors.push('商家当前非营业时段，暂无法下单');
   }
 
+  const radiusKm = merchant.delivery_radius_km ?? 0;
+  const merchantLat = merchant.latitude;
+  const merchantLng = merchant.longitude;
+  const hasRangeConfig = radiusKm > 0 && merchantLat != null && merchantLng != null;
+
+  if (hasRangeConfig) {
+    if (buyerLat == null || buyerLng == null) {
+      errors.push(`请填写收货地址坐标（纬度,经度）以校验是否在 ${radiusKm} 公里配送范围内`);
+    } else if (!isValidLatitude(buyerLat) || !isValidLongitude(buyerLng)) {
+      errors.push('收货地址坐标格式错误');
+    } else {
+      distanceKm = haversineDistanceKm(
+        { lat: merchantLat, lng: merchantLng },
+        { lat: buyerLat, lng: buyerLng }
+      );
+      if (distanceKm > radiusKm) {
+        inDeliveryRange = false;
+        errors.push(
+          `超出配送范围：当前距离 ${formatDistanceKm(distanceKm)}，配送半径 ${radiusKm} 公里`
+        );
+      }
+    }
+  }
+
   errors.push(...validateCartItems(cart.items, productMap));
 
   const itemsAmount = calculateItemsAmount(cart.items, productMap);
@@ -101,7 +135,10 @@ export function validateCartForCheckout(
     valid: errors.length === 0,
     errors,
     items_amount: itemsAmount,
-    total_amount: toMoney(itemsAmount + merchant.delivery_fee)
+    total_amount: toMoney(itemsAmount + merchant.delivery_fee),
+    delivery_fee: merchant.delivery_fee,
+    distance_km: distanceKm,
+    in_delivery_range: inDeliveryRange
   };
 }
 

@@ -1,7 +1,7 @@
 import re
 from rest_framework import serializers
 
-from .models import Merchant, DEFAULT_BUSINESS_HOURS
+from .models import Merchant, DEFAULT_BUSINESS_HOURS, DEFAULT_DELIVERY_RADIUS_KM
 
 
 class BusinessHoursSerializer(serializers.Serializer):
@@ -32,6 +32,9 @@ class MerchantSerializer(serializers.ModelSerializer):
             'delivery_note',
             'min_order_amount',
             'delivery_fee',
+            'delivery_radius_km',
+            'latitude',
+            'longitude',
             'is_open',
             'business_hours',
             'low_stock_threshold'
@@ -50,8 +53,33 @@ class MerchantSerializer(serializers.ModelSerializer):
 
         return value
 
+    def validate_delivery_radius_km(self, value):
+        if value is None:
+            return DEFAULT_DELIVERY_RADIUS_KM
+        if value < 0:
+            raise serializers.ValidationError('配送半径不能为负数')
+        if value > 100:
+            raise serializers.ValidationError('配送半径不能超过 100 公里')
+        return value
+
+    def validate_latitude(self, value):
+        if value is None:
+            return None
+        if value < -90 or value > 90:
+            raise serializers.ValidationError('纬度必须在 -90 到 90 之间')
+        return value
+
+    def validate_longitude(self, value):
+        if value is None:
+            return None
+        if value < -180 or value > 180:
+            raise serializers.ValidationError('经度必须在 -180 到 180 之间')
+        return value
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if not data.get('business_hours'):
             data['business_hours'] = DEFAULT_BUSINESS_HOURS
+        if data.get('delivery_radius_km') is None:
+            data['delivery_radius_km'] = DEFAULT_DELIVERY_RADIUS_KM
         return data

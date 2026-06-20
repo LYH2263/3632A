@@ -367,6 +367,8 @@ export class MockDataSource implements DataSource {
       receiver_name: payload.receiver_name,
       receiver_phone: payload.receiver_phone,
       receiver_address: payload.receiver_address,
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
       is_default: isFirst || !!payload.is_default,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -407,6 +409,12 @@ export class MockDataSource implements DataSource {
     }
     if (payload.receiver_address !== undefined) {
       target.receiver_address = payload.receiver_address;
+    }
+    if (payload.latitude !== undefined) {
+      target.latitude = payload.latitude ?? null;
+    }
+    if (payload.longitude !== undefined) {
+      target.longitude = payload.longitude ?? null;
     }
 
     if (payload.is_default) {
