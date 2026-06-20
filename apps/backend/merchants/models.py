@@ -13,6 +13,8 @@ DEFAULT_BUSINESS_HOURS = {
     '6': {'enabled': True, 'start': '08:00', 'end': '22:00'}
 }
 
+DEFAULT_LOW_STOCK_THRESHOLD = 5
+
 
 def get_beijing_now():
     now = datetime.utcnow()
@@ -39,6 +41,7 @@ class Merchant(models.Model):
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_open = models.BooleanField(default=True)
     business_hours = models.JSONField(default=dict)
+    low_stock_threshold = models.IntegerField(default=DEFAULT_LOW_STOCK_THRESHOLD)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -158,7 +158,7 @@ class ProductListView(APIView):
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
-        serializer = ProductSerializer(queryset, many=True)
+        serializer = ProductSerializer(queryset, many=True, context={'request': request})
         cache.set(cache_key, serializer.data, 60)
         return success_response(serializer.data)
 
@@ -186,7 +186,7 @@ class ProductListView(APIView):
 
         payload['merchant'] = merchant.id
         payload['category'] = category.id
-        serializer = ProductSerializer(data=payload)
+        serializer = ProductSerializer(data=payload, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -200,7 +200,7 @@ class ProductDetailView(APIView):
         product = Product.objects.filter(id=product_id).first()
         if product is None:
             return success_response(None)
-        serializer = ProductSerializer(product)
+        serializer = ProductSerializer(product, context={'request': request})
         return success_response(serializer.data)
 
     def patch(self, request, product_id: int):
@@ -232,9 +232,36 @@ class ProductDetailView(APIView):
         if permission_error is not None:
             return permission_error
 
-        serializer = ProductSerializer(product, data=payload, partial=True)
+        serializer = ProductSerializer(product, data=payload, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
         clear_product_related_cache()
         return success_response(serializer.data)
+
+
+class LowStockAlertView(APIView):
+    def get(self, request):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'merchant':
+            return error_response('仅商家可操作', status_code=403)
+
+        merchant_id = user.merchant_id
+        merchant = Merchant.objects.filter(id=merchant_id).first()
+        if merchant is None:
+            return error_response('商家不存在', status_code=404)
+
+        threshold = merchant.low_stock_threshold
+        low_stock_products = Product.objects.filter(
+            merchant_id=merchant_id,
+            stock__lte=threshold
+        ).exclude(stock=-1).order_by('stock')
+
+        serializer = ProductSerializer(low_stock_products, many=True, context={'request': request})
+        return success_response({
+            'threshold': threshold,
+            'low_stock_count': low_stock_products.count(),
+            'products': serializer.data
+        })

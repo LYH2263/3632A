@@ -33,7 +33,8 @@ class MerchantSerializer(serializers.ModelSerializer):
             'min_order_amount',
             'delivery_fee',
             'is_open',
-            'business_hours'
+            'business_hours',
+            'low_stock_threshold'
         ]
 
     def validate_business_hours(self, value):

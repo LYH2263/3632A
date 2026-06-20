@@ -57,7 +57,8 @@ export const seedMerchants: Merchant[] = [
     min_order_amount: 25,
     delivery_fee: 3,
     is_open: true,
-    business_hours: fruitStoreHours
+    business_hours: fruitStoreHours,
+    low_stock_threshold: 5
   },
   {
     id: 2,
@@ -68,7 +69,8 @@ export const seedMerchants: Merchant[] = [
     min_order_amount: 18,
     delivery_fee: 2,
     is_open: true,
-    business_hours: marketHours
+    business_hours: marketHours,
+    low_stock_threshold: 5
   }
 ];
 

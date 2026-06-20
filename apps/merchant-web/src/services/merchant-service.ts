@@ -8,6 +8,7 @@ import {
   STORAGE_KEYS,
   type Category,
   type LoginPayload,
+  type LowStockAlertResult,
   type Merchant,
   type Order,
   type OrderStatus,
@@ -488,6 +489,41 @@ class MerchantService {
     target.updated_at = new Date().toISOString();
     writeOrders(orders);
     return target;
+  }
+
+  async getLowStockAlert(): Promise<LowStockAlertResult> {
+    if (this.config.dataMode === 'api') {
+      return request<LowStockAlertResult>('/products/low-stock');
+    }
+
+    const authUser = readAuthSession()?.user;
+    if (!authUser || !authUser.merchant_id) {
+      throw new Error('请先登录');
+    }
+
+    const merchant = readMerchants().find((m) => m.id === authUser.merchant_id);
+    if (!merchant) {
+      throw new Error('商家不存在');
+    }
+
+    const threshold = merchant.low_stock_threshold ?? 5;
+    const products = readProducts()
+      .filter(
+        (p) =>
+          p.merchant_id === authUser.merchant_id &&
+          p.stock !== -1 &&
+          p.stock <= threshold
+      )
+      .sort((a, b) => a.stock - b.stock);
+
+    return {
+      threshold,
+      low_stock_count: products.length,
+      products: products.map((p) => ({
+        ...p,
+        is_low_stock: true
+      }))
+    };
   }
 }
 

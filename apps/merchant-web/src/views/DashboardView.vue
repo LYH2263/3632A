@@ -23,6 +23,33 @@
         >{{ sec.label }}</button>
       </div>
 
+      <!-- 低库存预警条 -->
+      <el-alert
+        v-if="lowStockAlert && lowStockAlert.low_stock_count > 0"
+        :title="`有 ${lowStockAlert.low_stock_count} 个商品库存低于预警阈值（${lowStockAlert.threshold}），请及时补货！`"
+        type="warning"
+        show-icon
+        closable
+        class="low-stock-alert"
+        data-testid="web-low-stock-alert"
+      >
+        <template #default>
+          <div class="low-stock-product-list">
+            <div
+              v-for="product in lowStockAlert.products"
+              :key="product.id"
+              class="low-stock-product-item"
+              @click="openEditDialog(product)"
+              data-testid="web-low-stock-product"
+            >
+              <span class="product-name">{{ product.name }}</span>
+              <span class="product-stock">库存: {{ product.stock }}</span>
+              <el-button size="small" type="primary" link>编辑</el-button>
+            </div>
+          </div>
+        </template>
+      </el-alert>
+
     <el-card class="block" ref="categorySection" data-testid="web-category-card">
       <template #header>
         <div class="block-header">
@@ -79,6 +106,15 @@
         </el-form-item>
         <el-form-item label="配送费">
           <el-input-number v-model="merchantForm.delivery_fee" data-testid="web-merchant-delivery-fee" :min="0" :step="1" />
+        </el-form-item>
+        <el-form-item label="库存预警阈值">
+          <el-input-number
+            v-model="merchantForm.low_stock_threshold"
+            data-testid="web-merchant-low-stock-threshold"
+            :min="1"
+            :step="1"
+          />
+          <div class="form-tip muted">当商品库存（非 -1）小于等于该值时触发预警，默认 5</div>
         </el-form-item>
         <el-form-item label="营业状态">
           <el-switch
@@ -346,6 +382,7 @@ import {
   type BusinessHours,
   type Category,
   type DayHours,
+  type LowStockAlertResult,
   type Merchant,
   type Order,
   type OrderStatus,
@@ -365,6 +402,7 @@ const merchant = ref<Merchant | null>(null);
 const categories = ref<Category[]>([]);
 const products = ref<Product[]>([]);
 const orders = ref<Order[]>([]);
+const lowStockAlert = ref<LowStockAlertResult | null>(null);
 
 const merchantForm = reactive({
   phone: '',
@@ -373,7 +411,8 @@ const merchantForm = reactive({
   min_order_amount: 0,
   delivery_fee: 0,
   is_open: true,
-  business_hours: getDefaultBusinessHours() as BusinessHours
+  business_hours: getDefaultBusinessHours() as BusinessHours,
+  low_stock_threshold: 5
 });
 
 const productDialogVisible = ref(false);
@@ -523,6 +562,7 @@ function assignMerchantForm(value: Merchant): void {
   merchantForm.min_order_amount = value.min_order_amount;
   merchantForm.delivery_fee = value.delivery_fee;
   merchantForm.is_open = value.is_open;
+  merchantForm.low_stock_threshold = value.low_stock_threshold ?? 5;
   if (value.business_hours) {
     merchantForm.business_hours = JSON.parse(JSON.stringify(value.business_hours));
   }
@@ -544,6 +584,7 @@ async function loadData(): Promise<void> {
   categories.value = await merchantService.listCategories(merchantId.value);
   products.value = await merchantService.listProducts(merchantId.value);
   orders.value = await merchantService.listOrdersByMerchant(merchantId.value);
+  lowStockAlert.value = await merchantService.getLowStockAlert();
 }
 
 async function saveMerchant(): Promise<void> {
@@ -564,9 +605,11 @@ async function saveMerchant(): Promise<void> {
     min_order_amount: Number(merchantForm.min_order_amount),
     delivery_fee: Number(merchantForm.delivery_fee),
     is_open: merchantForm.is_open,
+    low_stock_threshold: Number(merchantForm.low_stock_threshold),
     business_hours: JSON.parse(JSON.stringify(merchantForm.business_hours))
   });
   ElMessage.success('店铺信息已保存');
+  lowStockAlert.value = await merchantService.getLowStockAlert();
 }
 
 function openCreateDialog(): void {
@@ -709,5 +752,50 @@ onMounted(loadData);
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.low-stock-alert {
+  margin-bottom: 20px;
+}
+
+.low-stock-product-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.low-stock-product-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--el-bg-color-page, #f5f7fa);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.low-stock-product-item:hover {
+  background: var(--el-color-warning-light-7, #faecd8);
+}
+
+.low-stock-product-item .product-name {
+  font-weight: 500;
+  color: var(--el-text-color-primary, #303133);
+}
+
+.low-stock-product-item .product-stock {
+  color: var(--el-color-danger, #f56c6c);
+  font-size: 13px;
+}
+
+.form-tip {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.muted {
+  color: var(--el-text-color-secondary, #909399);
 }
 </style>

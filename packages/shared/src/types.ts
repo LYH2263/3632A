@@ -37,6 +37,7 @@ export interface Merchant {
   delivery_fee: number;
   is_open: boolean;
   business_hours: BusinessHours;
+  low_stock_threshold: number;
 }
 
 export interface Category {
@@ -58,6 +59,13 @@ export interface Product {
   is_active: boolean;
   image_url: string;
   description?: string;
+  is_low_stock?: boolean;
+}
+
+export interface LowStockAlertResult {
+  threshold: number;
+  low_stock_count: number;
+  products: Product[];
 }
 
 export interface CartItem {
@@ -199,4 +207,5 @@ export interface DataSource {
   addFavorite(buyerId: number, productId: number): Promise<Favorite>;
   removeFavorite(buyerId: number, productId: number): Promise<void>;
   isFavorite(buyerId: number, productId: number): Promise<boolean>;
+  getLowStockAlert(): Promise<LowStockAlertResult>;
 }

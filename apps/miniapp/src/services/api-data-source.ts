@@ -11,6 +11,7 @@ import {
   type FavoriteListResult,
   type LoginPayload,
   type LoginResult,
+  type LowStockAlertResult,
   type Merchant,
   type Order,
   type OrderStatus,
@@ -237,5 +238,9 @@ export class ApiDataSource implements DataSource {
   async isFavorite(buyerId: number, productId: number): Promise<boolean> {
     const result = await request<{ is_favorite: boolean }>(`/favorites/${productId}/check`);
     return result.is_favorite;
+  }
+
+  async getLowStockAlert(): Promise<LowStockAlertResult> {
+    throw new Error('买家端无权限访问低库存预警');
   }
 }

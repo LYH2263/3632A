@@ -14,6 +14,7 @@ import {
   type FavoriteListResult,
   type LoginPayload,
   type LoginResult,
+  type LowStockAlertResult,
   type Merchant,
   type Order,
   type OrderStatus,
@@ -512,6 +513,10 @@ export class MockDataSource implements DataSource {
     return favorites.some(
       (item) => item.buyer_id === buyerId && item.product_id === productId
     );
+  }
+
+  async getLowStockAlert(): Promise<LowStockAlertResult> {
+    throw new Error('买家端无权限访问低库存预警');
   }
 
   private get _currentBuyerId(): number {

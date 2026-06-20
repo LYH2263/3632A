@@ -39,7 +39,8 @@ class Command(BaseCommand):
                 'min_order_amount': 25,
                 'delivery_fee': 3,
                 'is_open': True,
-                'business_hours': FRUIT_STORE_HOURS
+                'business_hours': FRUIT_STORE_HOURS,
+                'low_stock_threshold': 5
             }
         )
 
@@ -52,7 +53,8 @@ class Command(BaseCommand):
                 'min_order_amount': 18,
                 'delivery_fee': 2,
                 'is_open': True,
-                'business_hours': MARKET_HOURS
+                'business_hours': MARKET_HOURS,
+                'low_stock_threshold': 5
             }
         )
 
