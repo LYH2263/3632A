@@ -25,6 +25,7 @@ class Order(models.Model):
     items_snapshot = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    settled_at = models.DateTimeField(null=True, blank=True, default=None)
 
     class Meta:
         db_table = 'order_info'

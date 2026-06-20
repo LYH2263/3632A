@@ -10,6 +10,12 @@ from products.views import (
 from orders.views import CartValidateView, OrderDetailView, OrderListView, OrderStatusUpdateView
 from favorites.views import FavoriteListView, FavoriteDetailView, FavoriteCheckView
 from usermessages.views import MessageListView, MessageUnreadCountView, MessageReadView, MessageReadAllView
+from settlements.views import (
+    SettlementStatementListView,
+    SettlementStatementDetailView,
+    SettlementStatementConfirmView,
+    SettlementGenerateView
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -38,4 +44,8 @@ urlpatterns = [
     path('api/v1/messages/unread-count', MessageUnreadCountView.as_view(), name='message-unread-count'),
     path('api/v1/messages/<int:message_id>/read', MessageReadView.as_view(), name='message-read'),
     path('api/v1/messages/read-all', MessageReadAllView.as_view(), name='message-read-all'),
+    path('api/v1/settlements', SettlementStatementListView.as_view(), name='settlement-list'),
+    path('api/v1/settlements/generate', SettlementGenerateView.as_view(), name='settlement-generate'),
+    path('api/v1/settlements/<int:statement_id>', SettlementStatementDetailView.as_view(), name='settlement-detail'),
+    path('api/v1/settlements/<int:statement_id>/confirm', SettlementStatementConfirmView.as_view(), name='settlement-confirm'),
 ]

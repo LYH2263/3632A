@@ -20,8 +20,11 @@ INSTALLED_APPS = [
     'products',
     'orders',
     'favorites',
-    'usermessages'
+    'usermessages',
+    'settlements'
 ]
+
+DEFAULT_SETTLEMENT_COMMISSION_RATE = 0.05
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
