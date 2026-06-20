@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 
-from users.views import LoginView, RegisterMerchantView
+from users.views import LoginView, RegisterMerchantView, AddressListView, AddressDetailView, AddressSetDefaultView
 from merchants.views import MerchantListView, MerchantDetailView
 from products.views import ProductListView, ProductDetailView
 from orders.views import CartValidateView, OrderDetailView, OrderListView, OrderStatusUpdateView
@@ -17,5 +17,8 @@ urlpatterns = [
     path('api/v1/cart/validate', CartValidateView.as_view(), name='cart-validate'),
     path('api/v1/orders', OrderListView.as_view(), name='order-list'),
     path('api/v1/orders/<int:order_id>', OrderDetailView.as_view(), name='order-detail'),
-    path('api/v1/orders/<int:order_id>/status', OrderStatusUpdateView.as_view(), name='order-status')
+    path('api/v1/orders/<int:order_id>/status', OrderStatusUpdateView.as_view(), name='order-status'),
+    path('api/v1/addresses', AddressListView.as_view(), name='address-list'),
+    path('api/v1/addresses/<int:address_id>', AddressDetailView.as_view(), name='address-detail'),
+    path('api/v1/addresses/<int:address_id>/default', AddressSetDefaultView.as_view(), name='address-set-default')
 ]

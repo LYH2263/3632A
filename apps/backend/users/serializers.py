@@ -1,6 +1,11 @@
 from rest_framework import serializers
+import re
 
-from .models import StoreUser
+from .models import StoreUser, Address
+
+
+def is_valid_phone(phone: str) -> bool:
+    return bool(re.match(r'^1[3-9]\d{9}$', phone))
 
 
 class LoginSerializer(serializers.Serializer):
@@ -38,4 +43,46 @@ class RegisterMerchantSerializer(serializers.Serializer):
     def validate_username(self, value: str) -> str:
         if StoreUser.objects.filter(username=value).exists():
             raise serializers.ValidationError('用户名已存在')
+        return value
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    buyer_id = serializers.IntegerField(source='buyer.id', read_only=True)
+
+    class Meta:
+        model = Address
+        fields = [
+            'id',
+            'buyer_id',
+            'receiver_name',
+            'receiver_phone',
+            'receiver_address',
+            'is_default',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class AddressCreateSerializer(serializers.Serializer):
+    receiver_name = serializers.CharField(max_length=50)
+    receiver_phone = serializers.CharField(max_length=20)
+    receiver_address = serializers.CharField(max_length=255)
+    is_default = serializers.BooleanField(required=False, default=False)
+
+    def validate_receiver_phone(self, value: str) -> str:
+        if not is_valid_phone(value):
+            raise serializers.ValidationError('手机号格式错误')
+        return value
+
+
+class AddressUpdateSerializer(serializers.Serializer):
+    receiver_name = serializers.CharField(max_length=50, required=False)
+    receiver_phone = serializers.CharField(max_length=20, required=False)
+    receiver_address = serializers.CharField(max_length=255, required=False)
+    is_default = serializers.BooleanField(required=False)
+
+    def validate_receiver_phone(self, value: str) -> str:
+        if not is_valid_phone(value):
+            raise serializers.ValidationError('手机号格式错误')
         return value

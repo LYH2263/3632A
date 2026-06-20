@@ -1,5 +1,8 @@
 import {
   emptyCart,
+  type Address,
+  type AddressCreatePayload,
+  type AddressUpdatePayload,
   type Cart,
   type CheckoutPayload,
   type DataSource,
@@ -134,6 +137,43 @@ export class ApiDataSource implements DataSource {
     return request<LoginResult>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload)
+    });
+  }
+
+  async listAddresses(buyerId: number): Promise<Address[]> {
+    return request<Address[]>('/addresses');
+  }
+
+  async getAddress(addressId: number): Promise<Address | null> {
+    return request<Address | null>(`/addresses/${addressId}`);
+  }
+
+  async createAddress(payload: AddressCreatePayload): Promise<Address> {
+    return request<Address>('/addresses', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async updateAddress(
+    addressId: number,
+    payload: AddressUpdatePayload
+  ): Promise<Address> {
+    return request<Address>(`/addresses/${addressId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async deleteAddress(addressId: number): Promise<void> {
+    await request<void>(`/addresses/${addressId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async setDefaultAddress(addressId: number): Promise<Address> {
+    return request<Address>(`/addresses/${addressId}/default`, {
+      method: 'POST'
     });
   }
 }

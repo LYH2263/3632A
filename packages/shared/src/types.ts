@@ -105,6 +105,31 @@ export interface LoginResult {
   user: Omit<User, 'password'>;
 }
 
+export interface Address {
+  id: number;
+  buyer_id: number;
+  receiver_name: string;
+  receiver_phone: string;
+  receiver_address: string;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AddressCreatePayload {
+  receiver_name: string;
+  receiver_phone: string;
+  receiver_address: string;
+  is_default?: boolean;
+}
+
+export interface AddressUpdatePayload {
+  receiver_name?: string;
+  receiver_phone?: string;
+  receiver_address?: string;
+  is_default?: boolean;
+}
+
 export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
@@ -122,4 +147,10 @@ export interface DataSource {
   setCart(cart: Cart): Promise<Cart>;
   clearCart(): Promise<Cart>;
   login(payload: LoginPayload): Promise<LoginResult>;
+  listAddresses(buyerId: number): Promise<Address[]>;
+  getAddress(addressId: number): Promise<Address | null>;
+  createAddress(payload: AddressCreatePayload): Promise<Address>;
+  updateAddress(addressId: number, payload: AddressUpdatePayload): Promise<Address>;
+  deleteAddress(addressId: number): Promise<void>;
+  setDefaultAddress(addressId: number): Promise<Address>;
 }

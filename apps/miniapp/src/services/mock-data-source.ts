@@ -2,6 +2,10 @@ import {
   canTransitionStatus,
   createOrderFromCart,
   emptyCart,
+  isValidPhone,
+  type Address,
+  type AddressCreatePayload,
+  type AddressUpdatePayload,
   type Cart,
   type CheckoutPayload,
   type DataSource,
@@ -14,11 +18,13 @@ import {
 } from '@community-store/shared';
 import {
   ensureMockDB,
+  readAddresses,
   readCart,
   readMerchants,
   readOrders,
   readProducts,
   readUsers,
+  writeAddresses,
   writeCart,
   writeMerchants,
   writeOrders,
@@ -212,5 +218,150 @@ export class MockDataSource implements DataSource {
         merchant_id: user.merchant_id
       }
     };
+  }
+
+  async listAddresses(buyerId: number): Promise<Address[]> {
+    return readAddresses()
+      .filter((item) => item.buyer_id === buyerId)
+      .sort((a, b) => {
+        if (a.is_default !== b.is_default) {
+          return b.is_default ? 1 : -1;
+        }
+        return b.created_at.localeCompare(a.created_at);
+      });
+  }
+
+  async getAddress(addressId: number): Promise<Address | null> {
+    return readAddresses().find((item) => item.id === addressId) ?? null;
+  }
+
+  async createAddress(payload: AddressCreatePayload): Promise<Address> {
+    if (!isValidPhone(payload.receiver_phone)) {
+      throw new Error('手机号格式错误');
+    }
+    if (!payload.receiver_name?.trim()) {
+      throw new Error('收货人姓名必填');
+    }
+    if (!payload.receiver_address?.trim()) {
+      throw new Error('收货地址必填');
+    }
+
+    const addresses = readAddresses();
+    const buyerAddresses = addresses.filter(
+      (item) => item.buyer_id === this._currentBuyerId
+    );
+    const isFirst = buyerAddresses.length === 0;
+
+    const created: Address = {
+      id: nextId(addresses),
+      buyer_id: this._currentBuyerId,
+      receiver_name: payload.receiver_name,
+      receiver_phone: payload.receiver_phone,
+      receiver_address: payload.receiver_address,
+      is_default: isFirst || !!payload.is_default,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (payload.is_default && !isFirst) {
+      addresses.forEach((item) => {
+        if (item.buyer_id === this._currentBuyerId) {
+          item.is_default = false;
+        }
+      });
+    }
+
+    addresses.push(created);
+    writeAddresses(addresses);
+    return created;
+  }
+
+  async updateAddress(
+    addressId: number,
+    payload: AddressUpdatePayload
+  ): Promise<Address> {
+    const addresses = readAddresses();
+    const target = addresses.find((item) => item.id === addressId);
+    if (!target) {
+      throw new Error('地址不存在');
+    }
+
+    if (payload.receiver_phone && !isValidPhone(payload.receiver_phone)) {
+      throw new Error('手机号格式错误');
+    }
+
+    if (payload.receiver_name !== undefined) {
+      target.receiver_name = payload.receiver_name;
+    }
+    if (payload.receiver_phone !== undefined) {
+      target.receiver_phone = payload.receiver_phone;
+    }
+    if (payload.receiver_address !== undefined) {
+      target.receiver_address = payload.receiver_address;
+    }
+
+    if (payload.is_default) {
+      addresses.forEach((item) => {
+        if (item.buyer_id === target.buyer_id) {
+          item.is_default = false;
+        }
+      });
+      target.is_default = true;
+    }
+
+    target.updated_at = new Date().toISOString();
+    writeAddresses(addresses);
+    return target;
+  }
+
+  async deleteAddress(addressId: number): Promise<void> {
+    const addresses = readAddresses();
+    const index = addresses.findIndex((item) => item.id === addressId);
+    if (index === -1) {
+      throw new Error('地址不存在');
+    }
+
+    const target = addresses[index];
+    const wasDefault = target.is_default;
+    const buyerId = target.buyer_id;
+
+    addresses.splice(index, 1);
+
+    if (wasDefault) {
+      const remaining = addresses
+        .filter((item) => item.buyer_id === buyerId)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      if (remaining.length > 0) {
+        remaining[0].is_default = true;
+        remaining[0].updated_at = new Date().toISOString();
+      }
+    }
+
+    writeAddresses(addresses);
+  }
+
+  async setDefaultAddress(addressId: number): Promise<Address> {
+    const addresses = readAddresses();
+    const target = addresses.find((item) => item.id === addressId);
+    if (!target) {
+      throw new Error('地址不存在');
+    }
+
+    addresses.forEach((item) => {
+      if (item.buyer_id === target.buyer_id) {
+        item.is_default = false;
+      }
+    });
+    target.is_default = true;
+    target.updated_at = new Date().toISOString();
+
+    writeAddresses(addresses);
+    return target;
+  }
+
+  private get _currentBuyerId(): number {
+    const users = readUsers();
+    const buyer = users.find((u) => u.role === 'buyer');
+    return buyer?.id ?? 1;
   }
 }

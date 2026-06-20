@@ -6,7 +6,8 @@ export const STORAGE_KEYS = {
   orders: 'community_store_orders',
   cart: 'community_store_cart',
   users: 'community_store_users',
-  auth: 'community_store_auth'
+  auth: 'community_store_auth',
+  addresses: 'community_store_addresses'
 } as const;
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

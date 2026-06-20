@@ -4,6 +4,7 @@ import {
   seedMerchants,
   seedProducts,
   seedUsers,
+  type Address,
   type Cart,
   type Merchant,
   type Order,
@@ -12,7 +13,7 @@ import {
 } from '@community-store/shared';
 import { readJSON, writeJSON } from './storage';
 
-const MOCK_DB_VERSION = 2;
+const MOCK_DB_VERSION = 3;
 const VERSION_KEY = 'community_store_mock_db_version';
 
 function ensureSeed<T>(key: string, seed: T): T {
@@ -30,6 +31,7 @@ export function ensureMockDB(): void {
     writeJSON(STORAGE_KEYS.merchants, seedMerchants);
     writeJSON(STORAGE_KEYS.products, seedProducts);
     writeJSON(STORAGE_KEYS.users, seedUsers);
+    writeJSON(STORAGE_KEYS.addresses, []);
     writeJSON(VERSION_KEY, MOCK_DB_VERSION);
   }
 
@@ -41,6 +43,7 @@ export function ensureMockDB(): void {
     updated_at: new Date().toISOString()
   });
   ensureSeed<User[]>(STORAGE_KEYS.users, seedUsers);
+  ensureSeed<Address[]>(STORAGE_KEYS.addresses, []);
 }
 
 export function readMerchants(): Merchant[] {
@@ -85,4 +88,13 @@ export function writeCart(value: Cart): void {
 export function readUsers(): User[] {
   ensureMockDB();
   return readJSON(STORAGE_KEYS.users, seedUsers);
+}
+
+export function readAddresses(): Address[] {
+  ensureMockDB();
+  return readJSON(STORAGE_KEYS.addresses, []);
+}
+
+export function writeAddresses(value: Address[]): void {
+  writeJSON(STORAGE_KEYS.addresses, value);
 }

@@ -3,10 +3,17 @@ from django.db import transaction
 from django.core.cache import cache
 from rest_framework.views import APIView
 
+from common.auth import get_request_user
 from common.response import error_response, success_response
 from merchants.models import Merchant
-from .models import StoreUser
-from .serializers import LoginSerializer, RegisterMerchantSerializer
+from .models import StoreUser, Address
+from .serializers import (
+    LoginSerializer,
+    RegisterMerchantSerializer,
+    AddressSerializer,
+    AddressCreateSerializer,
+    AddressUpdateSerializer
+)
 
 
 def build_auth_payload(user: StoreUser) -> dict:
@@ -72,3 +79,134 @@ class RegisterMerchantView(APIView):
         cache.delete('merchant:list')
 
         return success_response(build_auth_payload(user), status_code=201)
+
+
+def set_default_address_exclusive(buyer: StoreUser, address_id: int) -> None:
+    Address.objects.filter(buyer=buyer).update(is_default=False)
+    Address.objects.filter(buyer=buyer, id=address_id).update(is_default=True)
+
+
+class AddressListView(APIView):
+    def get(self, request):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        addresses = Address.objects.filter(buyer=user).order_by('-is_default', '-created_at')
+        serializer = AddressSerializer(addresses, many=True)
+        return success_response(serializer.data)
+
+    @transaction.atomic
+    def post(self, request):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        serializer = AddressCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        is_first = not Address.objects.filter(buyer=user).exists()
+        address = Address.objects.create(
+            buyer=user,
+            receiver_name=payload['receiver_name'],
+            receiver_phone=payload['receiver_phone'],
+            receiver_address=payload['receiver_address'],
+            is_default=is_first or payload.get('is_default', False)
+        )
+
+        if payload.get('is_default', False) and not is_first:
+            set_default_address_exclusive(user, address.id)
+
+        return success_response(AddressSerializer(address).data, status_code=201)
+
+
+class AddressDetailView(APIView):
+    def get(self, request, address_id: int):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        address = Address.objects.filter(id=address_id, buyer=user).first()
+        if address is None:
+            return error_response('地址不存在', status_code=404)
+
+        return success_response(AddressSerializer(address).data)
+
+    @transaction.atomic
+    def patch(self, request, address_id: int):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        address = Address.objects.filter(id=address_id, buyer=user).first()
+        if address is None:
+            return error_response('地址不存在', status_code=404)
+
+        serializer = AddressUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        if 'receiver_name' in payload:
+            address.receiver_name = payload['receiver_name']
+        if 'receiver_phone' in payload:
+            address.receiver_phone = payload['receiver_phone']
+        if 'receiver_address' in payload:
+            address.receiver_address = payload['receiver_address']
+
+        if 'is_default' in payload and payload['is_default']:
+            set_default_address_exclusive(user, address.id)
+        else:
+            address.save()
+
+        address.refresh_from_db()
+        return success_response(AddressSerializer(address).data)
+
+    @transaction.atomic
+    def delete(self, request, address_id: int):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        address = Address.objects.filter(id=address_id, buyer=user).first()
+        if address is None:
+            return error_response('地址不存在', status_code=404)
+
+        was_default = address.is_default
+        address.delete()
+
+        if was_default:
+            remaining = Address.objects.filter(buyer=user).order_by('-created_at').first()
+            if remaining is not None:
+                remaining.is_default = True
+                remaining.save(update_fields=['is_default', 'updated_at'])
+
+        return success_response(None)
+
+
+class AddressSetDefaultView(APIView):
+    @transaction.atomic
+    def post(self, request, address_id: int):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'buyer':
+            return error_response('仅买家可操作地址', status_code=403)
+
+        address = Address.objects.filter(id=address_id, buyer=user).first()
+        if address is None:
+            return error_response('地址不存在', status_code=404)
+
+        set_default_address_exclusive(user, address.id)
+        address.refresh_from_db()
+        return success_response(AddressSerializer(address).data)

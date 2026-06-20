@@ -51,35 +51,60 @@
         </article>
         <p v-else class="muted" data-testid="checkout-cart-empty">购物车为空。</p>
 
+        <article class="card" data-testid="checkout-address-card">
+          <div class="checkout-address-header">
+            <h3>收货地址</h3>
+            <button
+              class="text-btn"
+              data-testid="checkout-address-manage"
+              @click="goAddressList"
+            >
+              管理
+            </button>
+          </div>
+
+          <div
+            v-if="selectedAddress"
+            class="checkout-address-selected"
+            data-testid="checkout-address-selected"
+            @click="goAddressList"
+            @tap="goAddressList"
+          >
+            <div class="address-row">
+              <span class="address-receiver" data-testid="checkout-selected-name">
+                {{ selectedAddress.receiver_name }}
+              </span>
+              <span class="address-phone" data-testid="checkout-selected-phone">
+                {{ selectedAddress.receiver_phone }}
+              </span>
+              <u-tag
+                v-if="selectedAddress.is_default"
+                text="默认"
+                type="primary"
+                size="mini"
+              />
+            </div>
+            <p class="address-detail muted" data-testid="checkout-selected-address">
+              {{ selectedAddress.receiver_address }}
+            </p>
+            <span class="address-change">更换</span>
+          </div>
+
+          <div
+            v-else
+            class="checkout-address-empty"
+            data-testid="checkout-address-empty"
+            @click="goAddressList"
+            @tap="goAddressList"
+          >
+            <span class="address-empty-icon">📍</span>
+            <span class="muted">请选择收货地址</span>
+            <span class="address-arrow">›</span>
+          </div>
+        </article>
+
         <article class="card" data-testid="checkout-form-card">
-          <h3>收货信息</h3>
-          <div class="field">
-            <label for="checkout-receiver-name">姓名 *</label>
-            <input
-              id="checkout-receiver-name"
-              v-model="form.receiver_name"
-              data-testid="checkout-receiver-name"
-              placeholder="请输入收货人"
-            />
-          </div>
-          <div class="field">
-            <label for="checkout-receiver-phone">手机号 *</label>
-            <input
-              id="checkout-receiver-phone"
-              v-model="form.receiver_phone"
-              data-testid="checkout-receiver-phone"
-              placeholder="请输入手机号"
-            />
-          </div>
-          <div class="field">
-            <label for="checkout-receiver-address">地址 *</label>
-            <input
-              id="checkout-receiver-address"
-              v-model="form.receiver_address"
-              data-testid="checkout-receiver-address"
-              placeholder="请输入收货地址"
-            />
-          </div>
+          <h3>订单备注</h3>
           <div class="field">
             <label for="checkout-remark">备注</label>
             <textarea
@@ -113,6 +138,7 @@
 import {
   validateCartForCheckout,
   validateCheckoutPayload,
+  type Address,
   type CheckoutPayload,
   type Merchant,
   type Product
@@ -125,7 +151,7 @@ import { formatMoney } from '../../services/format';
 import { useCartStore } from '../../stores/cart';
 import { useSessionStore } from '../../stores/session';
 import { showMessage } from '../../utils/ui';
-import { numberOption, redirectTo } from '../../utils/navigation';
+import { navigateTo, numberOption, redirectTo } from '../../utils/navigation';
 
 const dataSource = getDataSource();
 const cartStore = useCartStore();
@@ -135,10 +161,9 @@ const merchant = ref<Merchant | null>(null);
 const products = ref<Product[]>([]);
 const submitting = ref(false);
 const submitFeedback = ref('');
+const addresses = ref<Address[]>([]);
+const selectedAddress = ref<Address | null>(null);
 const form = reactive({
-  receiver_name: '',
-  receiver_phone: '',
-  receiver_address: '',
   remark: ''
 });
 
@@ -194,6 +219,24 @@ async function loadData(): Promise<void> {
   }
 
   products.value = await dataSource.listProducts(merchant.value.id);
+  await loadAddresses();
+}
+
+async function loadAddresses(): Promise<void> {
+  try {
+    addresses.value = await dataSource.listAddresses(sessionStore.state.user.id);
+    if (!selectedAddress.value && addresses.value.length > 0) {
+      const defaultAddr = addresses.value.find((a) => a.is_default);
+      selectedAddress.value = defaultAddr || addresses.value[0];
+    } else if (selectedAddress.value) {
+      const updated = addresses.value.find((a) => a.id === selectedAddress.value?.id);
+      if (updated) {
+        selectedAddress.value = updated;
+      }
+    }
+  } catch (error) {
+    // 地址加载失败不影响主流程
+  }
 }
 
 async function adjust(product: Product, step: number): Promise<void> {
@@ -205,6 +248,10 @@ async function adjust(product: Product, step: number): Promise<void> {
   } catch (error) {
     showMessage((error as Error).message);
   }
+}
+
+function goAddressList(): void {
+  navigateTo('pages/address/list', { mode: 'select' });
 }
 
 async function submitOrder(): Promise<void> {
@@ -223,13 +270,20 @@ async function submitOrder(): Promise<void> {
     return;
   }
 
+  if (!selectedAddress.value) {
+    const message = '请选择收货地址';
+    submitFeedback.value = message;
+    showMessage(message);
+    return;
+  }
+
   try {
     const payload: CheckoutPayload = {
       buyer_id: sessionStore.state.user.id,
       merchant_id: merchant.value.id,
-      receiver_name: form.receiver_name,
-      receiver_phone: form.receiver_phone,
-      receiver_address: form.receiver_address,
+      receiver_name: selectedAddress.value.receiver_name,
+      receiver_phone: selectedAddress.value.receiver_phone,
+      receiver_address: selectedAddress.value.receiver_address,
       remark: form.remark
     };
 
@@ -270,3 +324,85 @@ onLoad((options) => {
 
 onShow(loadData);
 </script>
+
+<style scoped>
+.checkout-address-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.checkout-address-header h3 {
+  margin: 0;
+}
+
+.text-btn {
+  background: transparent;
+  color: var(--primary);
+  padding: 0 8px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.checkout-address-selected {
+  position: relative;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.address-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.address-receiver {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.address-phone {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.address-detail {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  padding-right: 50px;
+}
+
+.address-change {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.checkout-address-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 12px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.address-empty-icon {
+  font-size: 20px;
+}
+
+.address-arrow {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 18px;
+}
+</style>
