@@ -1,12 +1,13 @@
 from django.core.cache import cache
+from django.core.paginator import Paginator
 from django.db.models import Count
 from rest_framework.views import APIView
 
 from common.auth import get_request_user
 from common.response import error_response, success_response
 from merchants.models import Merchant
-from .models import Category, Product
-from .serializers import CategorySerializer, ProductSerializer
+from .models import Category, Product, StockLedger
+from .serializers import CategorySerializer, ProductSerializer, StockLedgerSerializer
 
 
 def require_merchant_permission(request, merchant_id: int):
@@ -232,6 +233,33 @@ class ProductDetailView(APIView):
         if permission_error is not None:
             return permission_error
 
+        user = get_request_user(request)
+        new_stock = payload.get('stock', None)
+        stock_changed = False
+        if new_stock is not None:
+            try:
+                new_stock_val = int(new_stock)
+            except (TypeError, ValueError):
+                return error_response('stock 必须是整数', status_code=400)
+            if new_stock_val != product.stock:
+                if product.stock == -1 or new_stock_val == -1:
+                    change_qty = 0
+                    remark = '库存模式变更'
+                else:
+                    change_qty = new_stock_val - product.stock
+                    remark = f'商家调整库存：{product.stock} → {new_stock_val}'
+                product.adjust_stock(
+                    quantity=change_qty,
+                    reason=StockLedger.REASON_MERCHANT_ADJUST,
+                    operator=user,
+                    remark=remark,
+                    allow_negative=True
+                )
+                stock_changed = True
+
+        if stock_changed:
+            payload.pop('stock', None)
+
         serializer = ProductSerializer(product, data=payload, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -264,4 +292,120 @@ class LowStockAlertView(APIView):
             'threshold': threshold,
             'low_stock_count': low_stock_products.count(),
             'products': serializer.data
+        })
+
+
+class ProductBatchToggleView(APIView):
+    def post(self, request):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'merchant':
+            return error_response('仅商家可操作', status_code=403)
+
+        merchant_id = user.merchant_id
+        merchant = Merchant.objects.filter(id=merchant_id).first()
+        if merchant is None:
+            return error_response('商家不存在', status_code=404)
+
+        product_ids = request.data.get('product_ids', [])
+        is_active = request.data.get('is_active')
+        set_stock_zero = request.data.get('set_stock_zero', False)
+
+        if is_active is None:
+            return error_response('is_active 必填', status_code=400)
+        if not product_ids:
+            return error_response('product_ids 不能为空', status_code=400)
+
+        try:
+            is_active_val = bool(is_active)
+        except (TypeError, ValueError):
+            return error_response('is_active 必须是布尔值', status_code=400)
+
+        products = Product.objects.filter(
+            id__in=product_ids,
+            merchant_id=merchant_id
+        )
+        updated_count = 0
+        for product in products:
+            old_active = product.is_active
+            product.is_active = is_active_val
+            update_fields = ['is_active']
+
+            if set_stock_zero and not is_active_val and product.stock != -1 and product.stock != 0:
+                    product.adjust_stock(
+                        quantity=-product.stock,
+                        reason=StockLedger.REASON_BATCH_TOGGLE,
+                        operator=user,
+                        remark='批量下架，库存清零',
+                        allow_negative=True
+                    )
+                    update_fields = []
+            elif set_stock_zero and is_active_val and product.stock == 0 and getattr(product, '_original_stock', None):
+                    pass
+
+            if old_active != is_active_val:
+                product.save(update_fields=update_fields) if update_fields else None
+                updated_count += 1
+
+        clear_product_related_cache()
+        return success_response({
+            'updated_count': updated_count,
+            'is_active': is_active_val
+        })
+
+
+class StockLedgerListView(APIView):
+    def get(self, request):
+        user = get_request_user(request)
+        if user is None:
+            return error_response('请先登录', status_code=403)
+        if user.role != 'merchant':
+            return error_response('仅商家可查看', status_code=403)
+
+        merchant_id = user.merchant_id
+
+        product_id = request.query_params.get('product_id')
+        reason = request.query_params.get('reason')
+        date_start = request.query_params.get('date_start')
+        date_end = request.query_params.get('date_end')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        queryset = StockLedger.objects.filter(merchant_id=merchant_id)
+
+        if product_id:
+            try:
+                product_id_val = int(product_id)
+                product = Product.objects.filter(id=product_id_val, merchant_id=merchant_id).first()
+                if product is None:
+                    return error_response('商品不存在或不属于该商家', status_code=404)
+                queryset = queryset.filter(product_id=product_id_val)
+            except (TypeError, ValueError):
+                return error_response('product_id 非法', status_code=400)
+
+        if reason:
+            queryset = queryset.filter(reason=reason)
+
+        if date_start:
+            queryset = queryset.filter(created_at__gte=date_start)
+
+        if date_end:
+            queryset = queryset.filter(created_at__lte=date_end + 'T23:59:59' if len(date_end) == 10 else date_end)
+
+        paginator = Paginator(queryset, page_size)
+        page_obj = paginator.get_page(page)
+
+        serializer = StockLedgerSerializer(page_obj.object_list, many=True)
+        return success_response({
+            'items': serializer.data,
+            'total': paginator.count,
+            'page': page_obj.number,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+            'reason_choices': [
+                {'value': k, 'label': v} for k, v in StockLedger.REASON_CHOICES
+            ]
         })

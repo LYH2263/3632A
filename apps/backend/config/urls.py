@@ -3,7 +3,10 @@ from django.urls import path
 
 from users.views import LoginView, RegisterMerchantView, AddressListView, AddressDetailView, AddressSetDefaultView
 from merchants.views import MerchantListView, MerchantDetailView
-from products.views import ProductListView, ProductDetailView, CategoryListView, CategoryDetailView, LowStockAlertView
+from products.views import (
+    ProductListView, ProductDetailView, CategoryListView, CategoryDetailView,
+    LowStockAlertView, ProductBatchToggleView, StockLedgerListView
+)
 from orders.views import CartValidateView, OrderDetailView, OrderListView, OrderStatusUpdateView
 from favorites.views import FavoriteListView, FavoriteDetailView, FavoriteCheckView
 from usermessages.views import MessageListView, MessageUnreadCountView, MessageReadView, MessageReadAllView
@@ -18,6 +21,8 @@ urlpatterns = [
     path('api/v1/categories/<int:category_id>', CategoryDetailView.as_view(), name='category-detail'),
     path('api/v1/products', ProductListView.as_view(), name='product-list'),
     path('api/v1/products/low-stock', LowStockAlertView.as_view(), name='product-low-stock'),
+    path('api/v1/products/batch-toggle', ProductBatchToggleView.as_view(), name='product-batch-toggle'),
+    path('api/v1/products/stock-ledger', StockLedgerListView.as_view(), name='product-stock-ledger'),
     path('api/v1/products/<int:product_id>', ProductDetailView.as_view(), name='product-detail'),
     path('api/v1/cart/validate', CartValidateView.as_view(), name='cart-validate'),
     path('api/v1/orders', OrderListView.as_view(), name='order-list'),

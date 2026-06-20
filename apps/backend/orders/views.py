@@ -10,7 +10,7 @@ from common.auth import get_request_user
 from common.response import error_response, success_response
 from merchants.models import Merchant
 from usermessages.models import Message
-from products.models import Product
+from products.models import Product, StockLedger
 from users.models import StoreUser
 from .models import Order
 from .serializers import (
@@ -322,9 +322,15 @@ class OrderListView(APIView):
 
         for item in payload['cart_items']:
             product = Product.objects.filter(id=item['product_id'], merchant=merchant).first()
-            if product and product.stock != -1:
-                product.stock = product.stock - int(item['quantity'])
-                product.save(update_fields=['stock'])
+            if product:
+                quantity = int(item['quantity'])
+                product.adjust_stock(
+                    quantity=-quantity,
+                    reason=StockLedger.REASON_ORDER_DEDUCT,
+                    operator=current_user,
+                    order=order,
+                    remark=f'订单 {order.order_no} 扣减库存'
+                )
 
         return success_response(OrderSerializer(order).data, status_code=201)
 
@@ -378,6 +384,23 @@ class OrderStatusUpdateView(APIView):
         allowed = STATUS_TRANSITIONS.get(order.status, [])
         if next_status not in allowed:
             return error_response('状态不可逆或非法迁移', status_code=400)
+
+        if next_status == 'canceled' and order.status != 'canceled':
+            for item in order.items_snapshot:
+                product = Product.objects.filter(id=item['product_id']).first()
+                if product:
+                    quantity = int(item['quantity'])
+                    try:
+                        product.adjust_stock(
+                            quantity=quantity,
+                            reason=StockLedger.REASON_ORDER_CANCEL,
+                            operator=user,
+                            order=order,
+                            remark=f'订单 {order.order_no} 取消，返还库存',
+                            allow_negative=False
+                        )
+                    except ValueError:
+                        pass
 
         order.status = next_status
         order.save(update_fields=['status', 'updated_at'])

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from common.auth import get_request_user
-from .models import Category, Product
+from .models import Category, Product, StockLedger
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -66,3 +66,32 @@ class ProductSerializer(serializers.ModelSerializer):
         if data.get('is_low_stock') is None:
             data.pop('is_low_stock', None)
         return data
+
+
+class StockLedgerSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    merchant_id = serializers.IntegerField(source='merchant.id', read_only=True)
+    reason_label = serializers.CharField(source='get_reason_display', read_only=True)
+    order_no = serializers.CharField(source='order.order_no', read_only=True, default=None)
+
+    class Meta:
+        model = StockLedger
+        fields = [
+            'id',
+            'product_id',
+            'product_name',
+            'merchant_id',
+            'change_quantity',
+            'stock_before',
+            'stock_after',
+            'reason',
+            'reason_label',
+            'operator_id',
+            'operator_role',
+            'operator_name',
+            'order_id',
+            'order_no',
+            'remark',
+            'created_at'
+        ]
