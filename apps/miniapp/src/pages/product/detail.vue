@@ -12,7 +12,17 @@
             data-testid="product-image"
           />
           <div class="product-detail-body">
-            <h2 class="product-detail-title" data-testid="product-name">{{ product.name }}</h2>
+            <div class="product-detail-title-row">
+              <h2 class="product-detail-title" data-testid="product-name">{{ product.name }}</h2>
+              <button
+                class="favorite-btn"
+                :class="{ active: isFavorited }"
+                data-testid="product-favorite-btn"
+                @click="toggleFavorite"
+              >
+                {{ isFavorited ? '❤️ 已收藏' : '🤍 收藏' }}
+              </button>
+            </div>
             <div class="product-detail-price-row">
               <p class="price" data-testid="product-price">{{ formatMoney(product.price) }}<span class="unit">/{{ product.unit }}</span></p>
               <p class="muted stock-label" data-testid="product-stock">库存：{{ product.stock === -1 ? '不限' : product.stock }}</p>
@@ -46,17 +56,20 @@ import { ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
 import { useCartStore } from '../../stores/cart';
+import { useSessionStore } from '../../stores/session';
 import { getDataSource } from '../../services/data-source';
 import { formatMoney } from '../../services/format';
 import { confirmAction, showMessage } from '../../utils/ui';
 import { numberOption, redirectTo } from '../../utils/navigation';
 
 const cartStore = useCartStore();
+const sessionStore = useSessionStore();
 const dataSource = getDataSource();
 
 const product = ref<Product | null>(null);
 const merchant = ref<Merchant | null>(null);
 const quantity = ref(1);
+const isFavorited = ref(false);
 const defaultProductImage = '/static/images/products/default.jpg';
 
 const productId = ref(0);
@@ -101,6 +114,35 @@ function goBack(): void {
   });
 }
 
+async function toggleFavorite(): Promise<void> {
+  if (!product.value) return;
+
+  const buyerId = sessionStore.state.user.id;
+  try {
+    if (isFavorited.value) {
+      await dataSource.removeFavorite(buyerId, product.value.id);
+      isFavorited.value = false;
+      showMessage('已取消收藏');
+    } else {
+      await dataSource.addFavorite(buyerId, product.value.id);
+      isFavorited.value = true;
+      showMessage('已收藏');
+    }
+  } catch (error) {
+    showMessage((error as Error).message);
+  }
+}
+
+async function checkFavorite(): Promise<void> {
+  if (!product.value) return;
+  const buyerId = sessionStore.state.user.id;
+  try {
+    isFavorited.value = await dataSource.isFavorite(buyerId, product.value.id);
+  } catch {
+    isFavorited.value = false;
+  }
+}
+
 onLoad((options) => {
   productId.value = numberOption(options, 'productId', 0);
   merchantId.value = numberOption(options, 'merchantId', 0);
@@ -111,5 +153,6 @@ onShow(async () => {
   quantity.value = 1;
   product.value = await dataSource.getProduct(productId.value);
   merchant.value = await dataSource.getMerchant(merchantId.value);
+  await checkFavorite();
 });
 </script>

@@ -66,7 +66,17 @@
               :data-testid="`shop-product-image-${product.id}`"
             />
             <div class="product-card-info">
-              <h3 class="product-card-title" :data-testid="`shop-product-name-${product.id}`">{{ product.name }}</h3>
+              <div class="product-card-title-row">
+                <h3 class="product-card-title" :data-testid="`shop-product-name-${product.id}`">{{ product.name }}</h3>
+                <button
+                  class="favorite-btn favorite-btn-sm"
+                  :class="{ active: favoriteMap[product.id] }"
+                  :data-testid="`shop-favorite-${product.id}`"
+                  @click.stop="toggleProductFavorite(product.id)"
+                >
+                  {{ favoriteMap[product.id] ? '❤️' : '🤍' }}
+                </button>
+              </div>
               <p class="muted product-desc">{{ product.description || '暂无描述' }}</p>
               <div class="product-card-price-row">
                 <div class="price">{{ formatMoney(product.price) }}<span class="unit">/{{ product.unit }}</span></div>
@@ -120,16 +130,18 @@ import {
   type Merchant,
   type Product
 } from '@community-store/shared';
-import { computed, ref } from 'vue';
+import { computed, ref, reactive } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
 import { useCartStore } from '../../stores/cart';
+import { useSessionStore } from '../../stores/session';
 import { getDataSource } from '../../services/data-source';
 import { formatMoney } from '../../services/format';
 import { confirmAction, showMessage } from '../../utils/ui';
 import { navigateTo, numberOption } from '../../utils/navigation';
 
 const cartStore = useCartStore();
+const sessionStore = useSessionStore();
 const dataSource = getDataSource();
 
 const merchant = ref<Merchant | null>(null);
@@ -138,6 +150,7 @@ const products = ref<Product[]>([]);
 const keyword = ref('');
 const merchantId = ref(0);
 const selectedCategoryId = ref<number>(0);
+const favoriteMap = reactive<Record<number, boolean>>({});
 
 const merchantStatus = computed(() => {
   if (!merchant.value) {
@@ -200,6 +213,39 @@ async function loadData(): Promise<void> {
   categories.value = await dataSource.listCategories(merchant.value.id);
   const catId = selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined;
   products.value = await dataSource.listProducts(merchant.value.id, keyword.value, catId);
+  await loadFavorites();
+}
+
+async function loadFavorites(): Promise<void> {
+  const buyerId = sessionStore.state.user.id;
+  try {
+    const result = await dataSource.listFavorites(buyerId, 1, 100);
+    Object.keys(favoriteMap).forEach((key) => {
+      delete favoriteMap[Number(key)];
+    });
+    result.items.forEach((fav) => {
+      favoriteMap[fav.product_id] = true;
+    });
+  } catch {
+    // ignore
+  }
+}
+
+async function toggleProductFavorite(productId: number): Promise<void> {
+  const buyerId = sessionStore.state.user.id;
+  try {
+    if (favoriteMap[productId]) {
+      await dataSource.removeFavorite(buyerId, productId);
+      delete favoriteMap[productId];
+      showMessage('已取消收藏');
+    } else {
+      await dataSource.addFavorite(buyerId, productId);
+      favoriteMap[productId] = true;
+      showMessage('已收藏');
+    }
+  } catch (error) {
+    showMessage((error as Error).message);
+  }
 }
 
 async function changeQuantity(product: Product, step: number): Promise<void> {

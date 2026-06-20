@@ -8,6 +8,7 @@ import {
   type Address,
   type Cart,
   type Category,
+  type Favorite,
   type Merchant,
   type Order,
   type Product,
@@ -110,4 +111,13 @@ export function readAddresses(): Address[] {
 
 export function writeAddresses(value: Address[]): void {
   writeJSON(STORAGE_KEYS.addresses, value);
+}
+
+export function readFavorites(): Favorite[] {
+  ensureMockDB();
+  return readJSON(STORAGE_KEYS.favorites, []);
+}
+
+export function writeFavorites(value: Favorite[]): void {
+  writeJSON(STORAGE_KEYS.favorites, value);
 }

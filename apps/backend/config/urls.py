@@ -5,6 +5,7 @@ from users.views import LoginView, RegisterMerchantView, AddressListView, Addres
 from merchants.views import MerchantListView, MerchantDetailView
 from products.views import ProductListView, ProductDetailView, CategoryListView, CategoryDetailView
 from orders.views import CartValidateView, OrderDetailView, OrderListView, OrderStatusUpdateView
+from favorites.views import FavoriteListView, FavoriteDetailView, FavoriteCheckView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -22,5 +23,8 @@ urlpatterns = [
     path('api/v1/orders/<int:order_id>/status', OrderStatusUpdateView.as_view(), name='order-status'),
     path('api/v1/addresses', AddressListView.as_view(), name='address-list'),
     path('api/v1/addresses/<int:address_id>', AddressDetailView.as_view(), name='address-detail'),
-    path('api/v1/addresses/<int:address_id>/default', AddressSetDefaultView.as_view(), name='address-set-default')
+    path('api/v1/addresses/<int:address_id>/default', AddressSetDefaultView.as_view(), name='address-set-default'),
+    path('api/v1/favorites', FavoriteListView.as_view(), name='favorite-list'),
+    path('api/v1/favorites/<int:product_id>', FavoriteDetailView.as_view(), name='favorite-detail'),
+    path('api/v1/favorites/<int:product_id>/check', FavoriteCheckView.as_view(), name='favorite-check'),
 ]

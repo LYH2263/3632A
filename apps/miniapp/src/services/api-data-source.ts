@@ -7,6 +7,8 @@ import {
   type Category,
   type CheckoutPayload,
   type DataSource,
+  type Favorite,
+  type FavoriteListResult,
   type LoginPayload,
   type LoginResult,
   type Merchant,
@@ -210,5 +212,30 @@ export class ApiDataSource implements DataSource {
     return request<Address>(`/addresses/${addressId}/default`, {
       method: 'POST'
     });
+  }
+
+  async listFavorites(buyerId: number, page = 1, pageSize = 20): Promise<FavoriteListResult> {
+    const search = new URLSearchParams();
+    search.set('page', String(page));
+    search.set('page_size', String(pageSize));
+    return request<FavoriteListResult>(`/favorites?${search.toString()}`);
+  }
+
+  async addFavorite(buyerId: number, productId: number): Promise<Favorite> {
+    return request<Favorite>('/favorites', {
+      method: 'POST',
+      body: JSON.stringify({ product_id: productId })
+    });
+  }
+
+  async removeFavorite(buyerId: number, productId: number): Promise<void> {
+    await request<void>(`/favorites/${productId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async isFavorite(buyerId: number, productId: number): Promise<boolean> {
+    const result = await request<{ is_favorite: boolean }>(`/favorites/${productId}/check`);
+    return result.is_favorite;
   }
 }

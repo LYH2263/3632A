@@ -53,6 +53,12 @@
       "style": {
         "navigationBarTitleText": "编辑地址"
       }
+    },
+    {
+      "path": "pages/favorite/list",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
     }
   ],
   "globalStyle": {

@@ -10,6 +10,8 @@ import {
   type Category,
   type CheckoutPayload,
   type DataSource,
+  type Favorite,
+  type FavoriteListResult,
   type LoginPayload,
   type LoginResult,
   type Merchant,
@@ -22,6 +24,7 @@ import {
   readAddresses,
   readCart,
   readCategories,
+  readFavorites,
   readMerchants,
   readOrders,
   readProducts,
@@ -29,6 +32,7 @@ import {
   writeAddresses,
   writeCart,
   writeCategories,
+  writeFavorites,
   writeMerchants,
   writeOrders,
   writeProducts
@@ -433,6 +437,81 @@ export class MockDataSource implements DataSource {
 
     writeAddresses(addresses);
     return target;
+  }
+
+  async listFavorites(buyerId: number, page = 1, pageSize = 20): Promise<FavoriteListResult> {
+    const allFavorites = readFavorites()
+      .filter((item) => item.buyer_id === buyerId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const products = readProducts();
+    const merchants = readMerchants();
+
+    const itemsWithDetails: Favorite[] = allFavorites.map((fav) => {
+      const product = products.find((p) => p.id === fav.product_id);
+      const merchant = product ? merchants.find((m) => m.id === product.merchant_id) : undefined;
+      return {
+        ...fav,
+        product,
+        merchant
+      };
+    });
+
+    const total = itemsWithDetails.length;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const items = itemsWithDetails.slice(start, end);
+
+    return {
+      items,
+      total,
+      page,
+      page_size: pageSize,
+      has_more: end < total
+    };
+  }
+
+  async addFavorite(buyerId: number, productId: number): Promise<Favorite> {
+    const products = readProducts();
+    const product = products.find((p) => p.id === productId);
+    if (!product) {
+      throw new Error('商品不存在');
+    }
+
+    const favorites = readFavorites();
+    const existing = favorites.find(
+      (item) => item.buyer_id === buyerId && item.product_id === productId
+    );
+
+    if (existing) {
+      return existing;
+    }
+
+    const created: Favorite = {
+      id: nextId(favorites),
+      buyer_id: buyerId,
+      product_id: productId,
+      created_at: new Date().toISOString()
+    };
+
+    favorites.push(created);
+    writeFavorites(favorites);
+    return created;
+  }
+
+  async removeFavorite(buyerId: number, productId: number): Promise<void> {
+    const favorites = readFavorites();
+    const filtered = favorites.filter(
+      (item) => !(item.buyer_id === buyerId && item.product_id === productId)
+    );
+    writeFavorites(filtered);
+  }
+
+  async isFavorite(buyerId: number, productId: number): Promise<boolean> {
+    const favorites = readFavorites();
+    return favorites.some(
+      (item) => item.buyer_id === buyerId && item.product_id === productId
+    );
   }
 
   private get _currentBuyerId(): number {

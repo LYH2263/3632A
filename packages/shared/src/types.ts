@@ -150,6 +150,23 @@ export interface AddressUpdatePayload {
   is_default?: boolean;
 }
 
+export interface Favorite {
+  id: number;
+  buyer_id: number;
+  product_id: number;
+  product?: Product;
+  merchant?: Merchant;
+  created_at: string;
+}
+
+export interface FavoriteListResult {
+  items: Favorite[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
 export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
@@ -178,4 +195,8 @@ export interface DataSource {
   updateAddress(addressId: number, payload: AddressUpdatePayload): Promise<Address>;
   deleteAddress(addressId: number): Promise<void>;
   setDefaultAddress(addressId: number): Promise<Address>;
+  listFavorites(buyerId: number, page?: number, pageSize?: number): Promise<FavoriteListResult>;
+  addFavorite(buyerId: number, productId: number): Promise<Favorite>;
+  removeFavorite(buyerId: number, productId: number): Promise<void>;
+  isFavorite(buyerId: number, productId: number): Promise<boolean>;
 }
