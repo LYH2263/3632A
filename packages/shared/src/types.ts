@@ -197,6 +197,29 @@ export interface OrderFilterParams {
   phone_suffix?: string;
 }
 
+export type MessageType = 'order_status';
+
+export interface Message {
+  id: number;
+  buyer_id: number;
+  type: MessageType;
+  order_id: number;
+  order_status: OrderStatus;
+  title: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface MessageListResult {
+  items: Message[];
+  total: number;
+  unread_count: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
 export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
@@ -230,4 +253,8 @@ export interface DataSource {
   removeFavorite(buyerId: number, productId: number): Promise<void>;
   isFavorite(buyerId: number, productId: number): Promise<boolean>;
   getLowStockAlert(): Promise<LowStockAlertResult>;
+  listMessages(buyerId: number, page?: number, pageSize?: number): Promise<MessageListResult>;
+  getUnreadMessageCount(buyerId: number): Promise<number>;
+  markMessageRead(messageId: number): Promise<void>;
+  markAllMessagesRead(buyerId: number): Promise<void>;
 }

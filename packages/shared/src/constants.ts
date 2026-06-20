@@ -9,7 +9,8 @@ export const STORAGE_KEYS = {
   users: 'community_store_users',
   auth: 'community_store_auth',
   addresses: 'community_store_addresses',
-  favorites: 'community_store_favorites'
+  favorites: 'community_store_favorites',
+  messages: 'community_store_messages'
 } as const;
 
 export const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];

@@ -6,6 +6,7 @@ from merchants.views import MerchantListView, MerchantDetailView
 from products.views import ProductListView, ProductDetailView, CategoryListView, CategoryDetailView, LowStockAlertView
 from orders.views import CartValidateView, OrderDetailView, OrderListView, OrderStatusUpdateView
 from favorites.views import FavoriteListView, FavoriteDetailView, FavoriteCheckView
+from usermessages.views import MessageListView, MessageUnreadCountView, MessageReadView, MessageReadAllView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,4 +29,8 @@ urlpatterns = [
     path('api/v1/favorites', FavoriteListView.as_view(), name='favorite-list'),
     path('api/v1/favorites/<int:product_id>', FavoriteDetailView.as_view(), name='favorite-detail'),
     path('api/v1/favorites/<int:product_id>/check', FavoriteCheckView.as_view(), name='favorite-check'),
+    path('api/v1/messages', MessageListView.as_view(), name='message-list'),
+    path('api/v1/messages/unread-count', MessageUnreadCountView.as_view(), name='message-unread-count'),
+    path('api/v1/messages/<int:message_id>/read', MessageReadView.as_view(), name='message-read'),
+    path('api/v1/messages/read-all', MessageReadAllView.as_view(), name='message-read-all'),
 ]

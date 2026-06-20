@@ -13,6 +13,7 @@ import {
   type LoginResult,
   type LowStockAlertResult,
   type Merchant,
+  type MessageListResult,
   type Order,
   type OrderFilterParams,
   type OrderStatus,
@@ -258,5 +259,29 @@ export class ApiDataSource implements DataSource {
 
   async getLowStockAlert(): Promise<LowStockAlertResult> {
     throw new Error('买家端无权限访问低库存预警');
+  }
+
+  async listMessages(buyerId: number, page = 1, pageSize = 20): Promise<MessageListResult> {
+    const search = new URLSearchParams();
+    search.set('page', String(page));
+    search.set('page_size', String(pageSize));
+    return request<MessageListResult>(`/messages?${search.toString()}`);
+  }
+
+  async getUnreadMessageCount(buyerId: number): Promise<number> {
+    const result = await request<{ unread_count: number }>('/messages/unread-count');
+    return result.unread_count;
+  }
+
+  async markMessageRead(messageId: number): Promise<void> {
+    await request<void>(`/messages/${messageId}/read`, {
+      method: 'PATCH'
+    });
+  }
+
+  async markAllMessagesRead(buyerId: number): Promise<void> {
+    await request<void>('/messages/read-all', {
+      method: 'POST'
+    });
   }
 }

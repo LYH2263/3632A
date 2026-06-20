@@ -10,6 +10,7 @@ import {
   type Category,
   type Favorite,
   type Merchant,
+  type Message,
   type Order,
   type Product,
   type User
@@ -49,6 +50,8 @@ export function ensureMockDB(): void {
   });
   ensureSeed<User[]>(STORAGE_KEYS.users, seedUsers);
   ensureSeed<Address[]>(STORAGE_KEYS.addresses, []);
+  ensureSeed<Favorite[]>(STORAGE_KEYS.favorites, []);
+  ensureSeed<Message[]>(STORAGE_KEYS.messages, []);
 }
 
 export function readMerchants(): Merchant[] {
@@ -120,4 +123,13 @@ export function readFavorites(): Favorite[] {
 
 export function writeFavorites(value: Favorite[]): void {
   writeJSON(STORAGE_KEYS.favorites, value);
+}
+
+export function readMessages(): Message[] {
+  ensureMockDB();
+  return readJSON(STORAGE_KEYS.messages, []);
+}
+
+export function writeMessages(value: Message[]): void {
+  writeJSON(STORAGE_KEYS.messages, value);
 }

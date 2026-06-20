@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from common.auth import get_request_user
 from common.response import error_response, success_response
 from merchants.models import Merchant
+from usermessages.models import Message
 from products.models import Product
 from users.models import StoreUser
 from .models import Order
@@ -27,12 +28,34 @@ STATUS_TRANSITIONS = {
     'canceled': []
 }
 
+STATUS_LABELS = {
+    'pending': '待确认',
+    'confirmed': '待配送',
+    'delivering': '配送中',
+    'completed': '已完成',
+    'canceled': '已取消'
+}
+
 EARTH_RADIUS_KM = 6371
 
 
 def generate_order_no() -> str:
     now = timezone.now()
     return f"CS{now.strftime('%Y%m%d%H%M%S')}{randint(1000, 9999)}"
+
+
+def create_order_status_message(order: Order, new_status: str):
+    status_label = STATUS_LABELS.get(new_status, new_status)
+    title = f'订单状态更新：{status_label}'
+    content = f'您的订单 {order.order_no} 状态已更新为「{status_label}」'
+    Message.objects.create(
+        buyer=order.buyer,
+        type='order_status',
+        order=order,
+        order_status=new_status,
+        title=title,
+        content=content
+    )
 
 
 def haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -358,4 +381,5 @@ class OrderStatusUpdateView(APIView):
 
         order.status = next_status
         order.save(update_fields=['status', 'updated_at'])
+        create_order_status_message(order, next_status)
         return success_response(OrderSerializer(order).data)

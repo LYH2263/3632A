@@ -3,6 +3,7 @@ import {
   createOrderFromCart,
   emptyCart,
   isValidPhone,
+  ORDER_STATUS_LABELS,
   type Address,
   type AddressCreatePayload,
   type AddressUpdatePayload,
@@ -16,6 +17,8 @@ import {
   type LoginResult,
   type LowStockAlertResult,
   type Merchant,
+  type Message,
+  type MessageListResult,
   type Order,
   type OrderFilterParams,
   type OrderStatus,
@@ -28,6 +31,7 @@ import {
   readCategories,
   readFavorites,
   readMerchants,
+  readMessages,
   readOrders,
   readProducts,
   readUsers,
@@ -36,6 +40,7 @@ import {
   writeCategories,
   writeFavorites,
   writeMerchants,
+  writeMessages,
   writeOrders,
   writeProducts
 } from '../data/mock-db';
@@ -282,6 +287,9 @@ export class MockDataSource implements DataSource {
     target.status = status;
     target.updated_at = new Date().toISOString();
     writeOrders(orders);
+
+    this._createOrderStatusMessage(target, status);
+
     return target;
   }
 
@@ -553,6 +561,69 @@ export class MockDataSource implements DataSource {
 
   async getLowStockAlert(): Promise<LowStockAlertResult> {
     throw new Error('买家端无权限访问低库存预警');
+  }
+
+  async listMessages(buyerId: number, page = 1, pageSize = 20): Promise<MessageListResult> {
+    const allMessages = readMessages()
+      .filter((item) => item.buyer_id === buyerId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const total = allMessages.length;
+    const unread_count = allMessages.filter((m) => !m.is_read).length;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const items = allMessages.slice(start, end);
+
+    return {
+      items,
+      total,
+      unread_count,
+      page,
+      page_size: pageSize,
+      has_more: end < total
+    };
+  }
+
+  async getUnreadMessageCount(buyerId: number): Promise<number> {
+    const messages = readMessages();
+    return messages.filter((m) => m.buyer_id === buyerId && !m.is_read).length;
+  }
+
+  async markMessageRead(messageId: number): Promise<void> {
+    const messages = readMessages();
+    const target = messages.find((item) => item.id === messageId);
+    if (target) {
+      target.is_read = true;
+      writeMessages(messages);
+    }
+  }
+
+  async markAllMessagesRead(buyerId: number): Promise<void> {
+    const messages = readMessages();
+    messages.forEach((m) => {
+      if (m.buyer_id === buyerId && !m.is_read) {
+        m.is_read = true;
+      }
+    });
+    writeMessages(messages);
+  }
+
+  private _createOrderStatusMessage(order: Order, status: OrderStatus): void {
+    const messages = readMessages();
+    const statusLabel = ORDER_STATUS_LABELS[status] || status;
+    const message: Message = {
+      id: nextId(messages),
+      buyer_id: order.buyer_id,
+      type: 'order_status',
+      order_id: order.id,
+      order_status: status,
+      title: `订单状态更新：${statusLabel}`,
+      content: `您的订单 ${order.order_no} 状态已更新为「${statusLabel}」`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    messages.push(message);
+    writeMessages(messages);
   }
 
   private get _currentBuyerId(): number {
