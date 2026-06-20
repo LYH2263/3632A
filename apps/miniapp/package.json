@@ -1,0 +1,40 @@
+{
+  "name": "miniapp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:mp-weixin": "uni -p mp-weixin",
+    "build": "vite build",
+    "build:h5": "uni build -p h5",
+    "build:mp-weixin": "uni build -p mp-weixin",
+    "lint": "eslint src --ext .ts,.vue",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@community-store/shared": "workspace:*",
+    "@dcloudio/uni-app": "3.0.0-4080720251210001",
+    "@dcloudio/uni-components": "3.0.0-4080720251210001",
+    "@dcloudio/uni-h5": "3.0.0-4080720251210001",
+    "@dcloudio/uni-mp-weixin": "3.0.0-4080720251210001",
+    "@dcloudio/vite-plugin-uni": "3.0.0-4080720251210001",
+    "uview-plus": "^3.7.13",
+    "vue": "3.4.21"
+  },
+  "devDependencies": {
+    "@dcloudio/types": "3.4.19",
+    "@eslint/js": "^9.22.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.22.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "jsdom": "^26.0.0",
+    "sass": "^1.97.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1",
+    "vite": "^5.2.8",
+    "vitest": "^3.0.8",
+    "vue-tsc": "^2.2.8"
+  }
+}

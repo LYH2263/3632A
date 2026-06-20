@@ -1,0 +1,96 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: community-store-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-community_store}
+      MYSQL_USER: ${MYSQL_USER:-community_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-community_pass}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+    command:
+      [
+        '--default-authentication-plugin=mysql_native_password',
+        '--character-set-server=utf8mb4',
+        '--collation-server=utf8mb4_unicode_ci',
+      ]
+    ports:
+      - '3306:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-p${MYSQL_ROOT_PASSWORD:-root_pass}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redis:7.2
+    container_name: community-store-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: community-store-backend
+    restart: unless-stopped
+    environment:
+      DEBUG: '1'
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-community_store}
+      MYSQL_USER: ${MYSQL_USER:-community_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-community_pass}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: '3306'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      SECRET_KEY: ${SECRET_KEY:-community-store-dev-secret}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '8000:8000'
+    healthcheck:
+      test: ['CMD', 'python', 'manage.py', 'check']
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  merchant-web:
+    build:
+      context: .
+      dockerfile: apps/merchant-web/Dockerfile
+    container_name: community-store-merchant-web
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - '8081:80'
+
+  miniapp:
+    build:
+      context: .
+      dockerfile: apps/miniapp/Dockerfile
+    container_name: community-store-miniapp
+    restart: unless-stopped
+    environment:
+      MINIAPP_DATA_MODE: ${MINIAPP_DATA_MODE:-api}
+      MINIAPP_API_BASE_URL: ${MINIAPP_API_BASE_URL:-http://localhost:8000/api/v1}
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - '8082:80'
+
+volumes:
+  mysql_data:

@@ -1,0 +1,16 @@
+﻿# 本地过程文档（不参与 AI 索引）
+题目.md
+迭代.md
+代码生成.md
+对话/
+meta.json
+mvp.json
+mvp.md
+
+# 工具与构建产物
+.playwright-mcp/
+node_modules/
+dist/
+coverage/
+e2e/playwright-report/
+e2e/test-results/

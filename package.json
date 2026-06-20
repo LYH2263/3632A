@@ -1,0 +1,22 @@
+{
+  "name": "community-store-mvp-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.26.1",
+  "scripts": {
+    "backend:setup": "pnpm --filter backend run setup",
+    "dev": "pnpm -r --parallel --if-present dev",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm -r --if-present build",
+    "e2e": "playwright test -c e2e/playwright.config.ts",
+    "e2e:ui": "playwright test -c e2e/playwright.config.ts --project=ui-mock --project=ui-api --project=full-chain",
+    "e2e:api": "playwright test -c e2e/playwright.config.ts --project=api-only",
+    "e2e:report": "playwright show-report e2e/playwright-report",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down -v"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

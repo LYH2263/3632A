@@ -1,0 +1,14 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "setup": "python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt",
+    "dev": "./.venv/bin/python manage.py runserver 0.0.0.0:8000",
+    "lint": "./.venv/bin/python manage.py check",
+    "test": "./.venv/bin/python manage.py test",
+    "build": "./.venv/bin/python manage.py check",
+    "e2e:reset": "./.venv/bin/python manage.py reset_mvp_data",
+    "e2e:serve": "pnpm run e2e:reset && ./.venv/bin/python manage.py runserver 0.0.0.0:8001 --noreload"
+  }
+}
