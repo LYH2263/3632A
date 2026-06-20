@@ -19,15 +19,16 @@
 						<h3 class="merchant-card-title">{{ merchant.name }}</h3>
 						<span
 							class="status-tag"
-							:class="merchant.is_open ? 'status-completed' : 'status-canceled'"
+							:class="getStatus(merchant).open ? 'status-completed' : 'status-canceled'"
 							:data-testid="`home-merchant-status-${merchant.id}`"
 						>
-							{{ merchant.is_open ? '营业中' : '休息中' }}
+							{{ getStatus(merchant).text }}
 						</span>
 					</div>
 					<div class="merchant-info">
 						<p class="muted">📍 {{ merchant.address }}</p>
 						<p class="muted">🚚 {{ merchant.delivery_note }}</p>
+						<p class="muted">🕐 今日：{{ getHoursText(merchant) }}</p>
 					</div>
 					<div class="merchant-pricing">
 						<span>起送 <strong class="price">{{ formatMoney(merchant.min_order_amount) }}</strong></span>
@@ -37,10 +38,10 @@
 					<button
 						class="primary"
 						:data-testid="`home-enter-merchant-${merchant.id}`"
-						:disabled="!merchant.is_open"
+						:disabled="!getStatus(merchant).open"
 						@click="goMerchant(merchant.id)"
 					>
-						进入商家
+						{{ getStatus(merchant).open ? '进入商家' : '休息中' }}
 					</button>
 				</article>
 
@@ -54,7 +55,13 @@
 </template>
 
 <script setup lang="ts">
-import type { Merchant } from '@community-store/shared'
+import {
+  isMerchantOpen,
+  getMerchantStatusText,
+  getTodayHours,
+  formatDayHours,
+  type Merchant
+} from '@community-store/shared'
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppTopBar from '../../components/AppTopBar.vue'
@@ -72,6 +79,19 @@ const filteredMerchants = computed(() => {
 	}
 	return merchants.value.filter((item) => item.name.toLowerCase().includes(normalized))
 })
+
+function getStatus(merchant: Merchant): { open: boolean; text: string } {
+  const open = isMerchantOpen(merchant.business_hours, merchant.is_open)
+  return {
+    open,
+    text: getMerchantStatusText(merchant.business_hours, merchant.is_open)
+  }
+}
+
+function getHoursText(merchant: Merchant): string {
+  const todayHours = getTodayHours(merchant.business_hours)
+  return formatDayHours(todayHours)
+}
 
 async function loadData(): Promise<void> {
 	merchants.value = await dataSource.listMerchants()

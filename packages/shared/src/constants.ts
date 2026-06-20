@@ -1,4 +1,4 @@
-import type { OrderStatus } from './types';
+import type { OrderStatus, Weekday } from './types';
 
 export const STORAGE_KEYS = {
   merchants: 'community_store_merchants',
@@ -9,6 +9,13 @@ export const STORAGE_KEYS = {
   users: 'community_store_users',
   auth: 'community_store_auth',
   addresses: 'community_store_addresses'
+} as const;
+
+export const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0];
+
+export const BUSINESS_HOURS_ERRORS = {
+  NOT_OPEN: '商家当前非营业时段，暂无法下单',
+  INVALID_HOURS: '营业时间配置错误'
 } as const;
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

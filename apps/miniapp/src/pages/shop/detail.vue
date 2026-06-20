@@ -5,10 +5,20 @@
     <view class="page-body">
       <section v-if="merchant" data-testid="shop-page">
         <article class="card shop-header-card" data-testid="shop-merchant-card">
-          <h2 class="shop-header-title" data-testid="shop-merchant-name">{{ merchant.name }}</h2>
+          <div class="shop-header-row">
+            <h2 class="shop-header-title" data-testid="shop-merchant-name">{{ merchant.name }}</h2>
+            <span
+              class="status-tag"
+              :class="merchantStatus.open ? 'status-completed' : 'status-canceled'"
+              :data-testid="`shop-merchant-status`"
+            >
+              {{ merchantStatus.text }}
+            </span>
+          </div>
           <div class="shop-header-meta">
             <p class="muted" data-testid="shop-merchant-phone">📞 {{ merchant.phone }}</p>
             <p class="muted" data-testid="shop-merchant-note">🚚 {{ merchant.delivery_note }}</p>
+            <p class="muted">🕐 今日：{{ todayHoursText }}</p>
           </div>
         </article>
 
@@ -101,7 +111,15 @@
 </template>
 
 <script setup lang="ts">
-import type { Category, Merchant, Product } from '@community-store/shared';
+import {
+  isMerchantOpen,
+  getMerchantStatusText,
+  getTodayHours,
+  formatDayHours,
+  type Category,
+  type Merchant,
+  type Product
+} from '@community-store/shared';
 import { computed, ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
@@ -120,6 +138,23 @@ const products = ref<Product[]>([]);
 const keyword = ref('');
 const merchantId = ref(0);
 const selectedCategoryId = ref<number>(0);
+
+const merchantStatus = computed(() => {
+  if (!merchant.value) {
+    return { open: false, text: '休息中' };
+  }
+  const open = isMerchantOpen(merchant.value.business_hours, merchant.value.is_open);
+  return {
+    open,
+    text: getMerchantStatusText(merchant.value.business_hours, merchant.value.is_open)
+  };
+});
+
+const todayHoursText = computed(() => {
+  if (!merchant.value) return '';
+  const todayHours = getTodayHours(merchant.value.business_hours);
+  return formatDayHours(todayHours);
+});
 
 const displayProducts = computed(() => {
   const normalized = keyword.value.trim().toLowerCase();
@@ -169,6 +204,10 @@ async function loadData(): Promise<void> {
 
 async function changeQuantity(product: Product, step: number): Promise<void> {
   if (!merchant.value) {
+    return;
+  }
+  if (!isMerchantOpen(merchant.value.business_hours, merchant.value.is_open)) {
+    showMessage('商家当前非营业时段，暂无法加购');
     return;
   }
   try {

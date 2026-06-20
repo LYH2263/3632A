@@ -5,6 +5,26 @@ from merchants.models import Merchant
 from products.models import Category, Product
 from users.models import StoreUser
 
+FRUIT_STORE_HOURS = {
+    '0': {'enabled': True, 'start': '22:00', 'end': '02:00'},
+    '1': {'enabled': False, 'start': '00:00', 'end': '00:00'},
+    '2': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '3': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '4': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '5': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '6': {'enabled': True, 'start': '22:00', 'end': '02:00'}
+}
+
+MARKET_HOURS = {
+    '0': {'enabled': True, 'start': '07:00', 'end': '23:00'},
+    '1': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '2': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '3': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '4': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '5': {'enabled': True, 'start': '08:00', 'end': '22:00'},
+    '6': {'enabled': True, 'start': '07:00', 'end': '23:00'}
+}
+
 
 class Command(BaseCommand):
     help = '初始化社区商店 MVP 示例数据'
@@ -18,7 +38,8 @@ class Command(BaseCommand):
                 'delivery_note': '2 公里内 30 分钟配送',
                 'min_order_amount': 25,
                 'delivery_fee': 3,
-                'is_open': True
+                'is_open': True,
+                'business_hours': FRUIT_STORE_HOURS
             }
         )
 
@@ -30,7 +51,8 @@ class Command(BaseCommand):
                 'delivery_note': '晚 10 点前配送',
                 'min_order_amount': 18,
                 'delivery_fee': 2,
-                'is_open': True
+                'is_open': True,
+                'business_hours': MARKET_HOURS
             }
         )
 

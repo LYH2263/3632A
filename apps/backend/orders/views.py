@@ -40,6 +40,10 @@ def validate_cart(merchant: Merchant, cart_items: list[dict]) -> tuple[list[str]
         errors.append('购物车为空')
         return errors, snapshots, items_amount
 
+    if not merchant.is_merchant_open():
+        errors.append('商家当前非营业时段，暂无法下单')
+        return errors, snapshots, items_amount
+
     for item in cart_items:
         product = Product.objects.filter(id=item['product_id'], merchant=merchant).first()
         if product is None:

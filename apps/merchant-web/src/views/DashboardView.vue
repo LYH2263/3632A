@@ -88,6 +88,49 @@
             inactive-text="休息中"
           />
         </el-form-item>
+        <el-form-item label="营业时间">
+          <div class="business-hours-container" data-testid="web-merchant-business-hours">
+            <div
+              v-for="day in WEEKDAY_ORDER"
+              :key="day"
+              class="business-hours-row"
+            >
+              <span class="weekday-label">{{ WEEKDAY_LABELS[day] }}</span>
+              <el-switch
+                v-model="merchantForm.business_hours[day].enabled"
+                :data-testid="`web-merchant-hours-enabled-${day}`"
+                active-text=""
+                inactive-text=""
+              />
+              <el-time-picker
+                v-model="merchantForm.business_hours[day].start"
+                format="HH:mm"
+                value-format="HH:mm"
+                :disabled="!merchantForm.business_hours[day].enabled"
+                :data-testid="`web-merchant-hours-start-${day}`"
+                placeholder="开始时间"
+                style="width: 120px;"
+              />
+              <span class="time-separator">—</span>
+              <el-time-picker
+                v-model="merchantForm.business_hours[day].end"
+                format="HH:mm"
+                value-format="HH:mm"
+                :disabled="!merchantForm.business_hours[day].enabled"
+                :data-testid="`web-merchant-hours-end-${day}`"
+                placeholder="结束时间"
+                style="width: 120px;"
+              />
+              <span
+                v-if="!merchantForm.business_hours[day].enabled"
+                class="closed-tag"
+              >休息</span>
+            </div>
+            <div class="hours-tip muted">
+              💡 跨午夜时段示例：22:00—02:00（自动支持跨天判断）
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" data-testid="web-merchant-save" @click="saveMerchant">保存店铺信息</el-button>
         </el-form-item>
@@ -296,12 +339,19 @@
 import {
   ORDER_STATUS_LABELS,
   STATUS_TRANSITIONS,
+  WEEKDAY_ORDER,
+  WEEKDAY_LABELS,
+  getDefaultBusinessHours,
+  validateBusinessHours,
+  type BusinessHours,
   type Category,
+  type DayHours,
   type Merchant,
   type Order,
   type OrderStatus,
   type Product,
-  type User
+  type User,
+  type Weekday
 } from '@community-store/shared';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -322,7 +372,8 @@ const merchantForm = reactive({
   delivery_note: '',
   min_order_amount: 0,
   delivery_fee: 0,
-  is_open: true
+  is_open: true,
+  business_hours: getDefaultBusinessHours() as BusinessHours
 });
 
 const productDialogVisible = ref(false);
@@ -472,6 +523,9 @@ function assignMerchantForm(value: Merchant): void {
   merchantForm.min_order_amount = value.min_order_amount;
   merchantForm.delivery_fee = value.delivery_fee;
   merchantForm.is_open = value.is_open;
+  if (value.business_hours) {
+    merchantForm.business_hours = JSON.parse(JSON.stringify(value.business_hours));
+  }
 }
 
 async function loadData(): Promise<void> {
@@ -496,13 +550,21 @@ async function saveMerchant(): Promise<void> {
   if (!merchant.value) {
     return;
   }
+
+  const hoursErrors = validateBusinessHours(merchantForm.business_hours);
+  if (hoursErrors.length > 0) {
+    ElMessage.error(hoursErrors[0]);
+    return;
+  }
+
   merchant.value = await merchantService.updateMerchant(merchant.value.id, {
     phone: merchantForm.phone.trim(),
     address: merchantForm.address.trim(),
     delivery_note: merchantForm.delivery_note,
     min_order_amount: Number(merchantForm.min_order_amount),
     delivery_fee: Number(merchantForm.delivery_fee),
-    is_open: merchantForm.is_open
+    is_open: merchantForm.is_open,
+    business_hours: JSON.parse(JSON.stringify(merchantForm.business_hours))
   });
   ElMessage.success('店铺信息已保存');
 }
@@ -593,3 +655,59 @@ function logout(): void {
 
 onMounted(loadData);
 </script>
+
+<style scoped>
+.business-hours-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.business-hours-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--el-bg-color-page, #f5f7fa);
+  border-radius: 6px;
+}
+
+.weekday-label {
+  width: 48px;
+  font-weight: 500;
+  color: var(--el-text-color-primary, #303133);
+}
+
+.time-separator {
+  color: var(--el-text-color-regular, #606266);
+  margin: 0 4px;
+}
+
+.closed-tag {
+  color: var(--el-color-danger, #f56c6c);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hours-tip {
+  font-size: 12px;
+  padding: 8px 12px;
+  background: var(--el-color-info-light-9, #f4f4f5);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.shop-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.status-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+</style>

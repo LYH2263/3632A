@@ -17,6 +17,16 @@ export interface User {
   phone?: string;
 }
 
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface DayHours {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+export type BusinessHours = Record<Weekday, DayHours>;
+
 export interface Merchant {
   id: number;
   name: string;
@@ -26,6 +36,7 @@ export interface Merchant {
   min_order_amount: number;
   delivery_fee: number;
   is_open: boolean;
+  business_hours: BusinessHours;
 }
 
 export interface Category {

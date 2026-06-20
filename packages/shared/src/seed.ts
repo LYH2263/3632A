@@ -1,4 +1,5 @@
-import type { Cart, Category, Merchant, Product, User } from './types';
+import type { BusinessHours, Cart, Category, Merchant, Product, User } from './types';
+import { getDefaultBusinessHours } from './utils/businessHours';
 
 export const seedUsers: User[] = [
   {
@@ -29,6 +30,23 @@ export const seedUsers: User[] = [
   }
 ];
 
+const fruitStoreHours: BusinessHours = {
+  ...getDefaultBusinessHours(),
+  1: { enabled: false, start: '00:00', end: '00:00' },
+  2: { enabled: true, start: '08:00', end: '22:00' },
+  3: { enabled: true, start: '08:00', end: '22:00' },
+  4: { enabled: true, start: '08:00', end: '22:00' },
+  5: { enabled: true, start: '08:00', end: '22:00' },
+  6: { enabled: true, start: '22:00', end: '02:00' },
+  0: { enabled: true, start: '22:00', end: '02:00' }
+};
+
+const marketHours: BusinessHours = {
+  ...getDefaultBusinessHours(),
+  6: { enabled: true, start: '07:00', end: '23:00' },
+  0: { enabled: true, start: '07:00', end: '23:00' }
+};
+
 export const seedMerchants: Merchant[] = [
   {
     id: 1,
@@ -38,7 +56,8 @@ export const seedMerchants: Merchant[] = [
     delivery_note: '2 公里内 30 分钟配送',
     min_order_amount: 25,
     delivery_fee: 3,
-    is_open: true
+    is_open: true,
+    business_hours: fruitStoreHours
   },
   {
     id: 2,
@@ -48,7 +67,8 @@ export const seedMerchants: Merchant[] = [
     delivery_note: '晚 10 点前配送',
     min_order_amount: 18,
     delivery_fee: 2,
-    is_open: true
+    is_open: true,
+    business_hours: marketHours
   }
 ];
 

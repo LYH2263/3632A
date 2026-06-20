@@ -9,6 +9,7 @@ import type {
   Product
 } from '../types';
 import { toMoney } from './number';
+import { isMerchantOpen } from './businessHours';
 
 export function isValidPhone(phone: string): boolean {
   return /^1[3-9]\d{9}$/.test(phone);
@@ -83,6 +84,10 @@ export function validateCartForCheckout(
 
   if (cart.merchant_id !== merchant.id) {
     errors.push('购物车商家与当前商家不一致');
+  }
+
+  if (!isMerchantOpen(merchant.business_hours, merchant.is_open)) {
+    errors.push('商家当前非营业时段，暂无法下单');
   }
 
   errors.push(...validateCartItems(cart.items, productMap));
