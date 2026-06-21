@@ -220,6 +220,51 @@ export interface MessageListResult {
   has_more: boolean;
 }
 
+export type StockLedgerReason =
+  | 'order_deduct'
+  | 'merchant_adjust'
+  | 'batch_toggle'
+  | 'order_cancel';
+
+export interface StockLedger {
+  id: number;
+  product_id: number;
+  product_name: string;
+  merchant_id: number;
+  change_quantity: number;
+  stock_before: number;
+  stock_after: number;
+  reason: StockLedgerReason;
+  reason_label: string;
+  operator_id?: number | null;
+  operator_role: string;
+  operator_name: string;
+  order_id?: number | null;
+  order_no?: string | null;
+  remark: string;
+  created_at: string;
+}
+
+export interface StockLedgerFilterParams {
+  product_id?: number;
+  reason?: StockLedgerReason;
+  date_start?: string;
+  date_end?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface StockLedgerListResult {
+  items: StockLedger[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+  reason_choices: Array<{ value: StockLedgerReason; label: string }>;
+}
+
 export interface DataSource {
   listMerchants(): Promise<Merchant[]>;
   getMerchant(merchantId: number): Promise<Merchant | null>;
@@ -257,4 +302,5 @@ export interface DataSource {
   getUnreadMessageCount(buyerId: number): Promise<number>;
   markMessageRead(messageId: number): Promise<void>;
   markAllMessagesRead(buyerId: number): Promise<void>;
+  listStockLedger(filters?: StockLedgerFilterParams): Promise<StockLedgerListResult>;
 }

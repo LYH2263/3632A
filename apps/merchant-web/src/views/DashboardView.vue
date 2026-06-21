@@ -9,6 +9,15 @@
           <span class="navbar-status-dot"></span>
           {{ merchantForm.is_open ? '营业中' : '休息中' }}
         </span>
+        <span class="navbar-divider">|</span>
+        <el-button
+          link
+          type="primary"
+          data-testid="web-navbar-stock-ledger"
+          @click="goToStockLedger"
+        >
+          📒 库存流水
+        </el-button>
       </div>
       <el-button text type="danger" @click="logout">退出登录</el-button>
     </div>
@@ -923,10 +932,19 @@ function logout(): void {
   router.push('/login');
 }
 
+function goToStockLedger(): void {
+  router.push('/stock-ledger');
+}
+
 onMounted(loadData);
 </script>
 
 <style scoped>
+.navbar-divider {
+  color: var(--el-border-color, #dcdfe6);
+  margin: 0 4px;
+}
+
 .business-hours-container {
   display: flex;
   flex-direction: column;

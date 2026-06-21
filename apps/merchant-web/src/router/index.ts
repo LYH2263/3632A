@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from '../views/LoginView.vue';
 import DashboardView from '../views/DashboardView.vue';
+import StockLedgerView from '../views/StockLedgerView.vue';
 import { merchantService } from '../services/merchant-service';
 
 export const router = createRouter({
@@ -8,7 +9,8 @@ export const router = createRouter({
   routes: [
     { path: '/', redirect: '/dashboard' },
     { path: '/login', component: LoginView },
-    { path: '/dashboard', component: DashboardView }
+    { path: '/dashboard', component: DashboardView },
+    { path: '/stock-ledger', component: StockLedgerView }
   ]
 });
 

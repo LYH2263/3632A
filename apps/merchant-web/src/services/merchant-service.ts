@@ -19,6 +19,10 @@ import {
   type OrderFilterParams,
   type OrderStatus,
   type Product,
+  type StockLedger,
+  type StockLedgerFilterParams,
+  type StockLedgerListResult,
+  type StockLedgerReason,
   type User
 } from '@community-store/shared';
 import { request } from './http';
@@ -551,6 +555,80 @@ class MerchantService {
         ...p,
         is_low_stock: true
       }))
+    };
+  }
+
+  async listStockLedger(filters?: StockLedgerFilterParams): Promise<StockLedgerListResult> {
+    const REASON_CHOICES: Array<{ value: StockLedgerReason; label: string }> = [
+      { value: 'order_deduct', label: '下单扣减' },
+      { value: 'merchant_adjust', label: '商家调整' },
+      { value: 'batch_toggle', label: '批量上下架' },
+      { value: 'order_cancel', label: '取消订单返还' }
+    ];
+
+    if (this.config.dataMode === 'api') {
+      const params = new URLSearchParams();
+      if (filters?.product_id) params.set('product_id', String(filters.product_id));
+      if (filters?.reason) params.set('reason', filters.reason);
+      if (filters?.date_start) params.set('date_start', filters.date_start);
+      if (filters?.date_end) params.set('date_end', filters.date_end);
+      if (filters?.page) params.set('page', String(filters.page));
+      if (filters?.page_size) params.set('page_size', String(filters.page_size));
+      const qs = params.toString();
+      return request<StockLedgerListResult>(`/products/stock-ledger${qs ? '?' + qs : ''}`);
+    }
+
+    const authUser = readAuthSession()?.user;
+    if (!authUser || !authUser.merchant_id) {
+      throw new Error('请先登录');
+    }
+
+    const merchantId = authUser.merchant_id;
+    const allProducts = readProducts().filter((p) => p.merchant_id === merchantId);
+    const productMap = new Map(allProducts.map((p) => [p.id, p]));
+
+    const raw = readJSON<StockLedger[] | null>('stock_ledgers', null);
+    let items = (raw ?? []).filter((item) => item.merchant_id === merchantId);
+
+    if (filters?.product_id) {
+      items = items.filter((item) => item.product_id === filters.product_id);
+    }
+    if (filters?.reason) {
+      items = items.filter((item) => item.reason === filters.reason);
+    }
+    if (filters?.date_start) {
+      items = items.filter((item) => item.created_at >= filters.date_start!);
+    }
+    if (filters?.date_end) {
+      const end = filters.date_end.includes('T') ? filters.date_end : filters.date_end + 'T23:59:59';
+      items = items.filter((item) => item.created_at <= end);
+    }
+
+    items.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    const page = filters?.page ?? 1;
+    const page_size = filters?.page_size ?? 20;
+    const total = items.length;
+    const total_pages = Math.max(1, Math.ceil(total / page_size));
+    const start = (page - 1) * page_size;
+    const paged = items.slice(start, start + page_size).map((item) => {
+      const choice = REASON_CHOICES.find((c) => c.value === item.reason);
+      return {
+        ...item,
+        product_name: productMap.get(item.product_id)?.name ?? `商品#${item.product_id}`,
+        reason_label: choice?.label ?? item.reason
+      };
+    });
+
+    return {
+      items: paged,
+      total,
+      page,
+      page_size,
+      total_pages,
+      has_next: page < total_pages,
+      has_previous: page > 1,
+      reason_choices: REASON_CHOICES
     };
   }
 }
