@@ -1,6 +1,11 @@
 import {
   canTransitionStatus,
+  ensureMockStorageCommon,
   getDefaultBusinessHours,
+  MOCK_DB_CURRENT_VERSION,
+  MOCK_DB_VERSION_KEY,
+  migrateMerchant,
+  migrateMerchantList,
   seedCategories,
   seedMerchants,
   seedProducts,
@@ -72,43 +77,31 @@ function writeAuthSession(session: AuthSession): void {
   writeJSON(AUTH_KEY, session);
 }
 
-const MOCK_DB_VERSION = 5;
-const VERSION_KEY = 'community_store_mock_db_version';
+const MOCK_DB_VERSION = MOCK_DB_CURRENT_VERSION;
+const VERSION_KEY = MOCK_DB_VERSION_KEY;
 
 function ensureMockStorage(): void {
-  const storedVersion = readJSON<number>(VERSION_KEY, 0);
-  if (storedVersion < MOCK_DB_VERSION) {
-    writeJSON(STORAGE_KEYS.merchants, seedMerchants);
-    writeJSON(STORAGE_KEYS.categories, seedCategories);
-    writeJSON(STORAGE_KEYS.products, seedProducts);
-    writeJSON(STORAGE_KEYS.users, seedUsers);
-    writeJSON(VERSION_KEY, MOCK_DB_VERSION);
-  }
-
-  const merchants = readJSON<Merchant[] | null>(STORAGE_KEYS.merchants, null);
-  if (!merchants) {
-    writeJSON(STORAGE_KEYS.merchants, seedMerchants);
-  }
-
-  const categories = readJSON<Category[] | null>(STORAGE_KEYS.categories, null);
-  if (!categories) {
-    writeJSON(STORAGE_KEYS.categories, seedCategories);
-  }
-
-  const products = readJSON<Product[] | null>(STORAGE_KEYS.products, null);
-  if (!products) {
-    writeJSON(STORAGE_KEYS.products, seedProducts);
-  }
-
-  const users = readJSON<User[] | null>(STORAGE_KEYS.users, null);
-  if (!users) {
-    writeJSON(STORAGE_KEYS.users, seedUsers);
-  }
-
-  const orders = readJSON<Order[] | null>(STORAGE_KEYS.orders, null);
-  if (!orders) {
-    writeJSON(STORAGE_KEYS.orders, [] as Order[]);
-  }
+  ensureMockStorageCommon({
+    readJSON: <T,>(key: string, fallback: T | null) => readJSON<T | null>(key, fallback),
+    writeJSON: (key: string, value: unknown) => writeJSON(key, value),
+    extraEnsures: {
+      addresses: () => {
+        if (!readJSON(STORAGE_KEYS.addresses, null)) {
+          writeJSON(STORAGE_KEYS.addresses, []);
+        }
+      },
+      favorites: () => {
+        if (!readJSON(STORAGE_KEYS.favorites, null)) {
+          writeJSON(STORAGE_KEYS.favorites, []);
+        }
+      },
+      messages: () => {
+        if (!readJSON(STORAGE_KEYS.messages, null)) {
+          writeJSON(STORAGE_KEYS.messages, []);
+        }
+      }
+    }
+  });
 }
 
 function readCategories(): Category[] {
@@ -122,7 +115,12 @@ function writeCategories(value: Category[]): void {
 
 function readMerchants(): Merchant[] {
   ensureMockStorage();
-  return readJSON(STORAGE_KEYS.merchants, seedMerchants);
+  const raw = readJSON<Merchant[] | null>(STORAGE_KEYS.merchants, null);
+  const migrated = migrateMerchantList(raw ?? []);
+  if (!raw || JSON.stringify(raw) !== JSON.stringify(migrated)) {
+    writeMerchants(migrated);
+  }
+  return migrated;
 }
 
 function writeMerchants(value: Merchant[]): void {
@@ -286,10 +284,10 @@ class MerchantService {
 
   async getMerchant(merchantId: number): Promise<Merchant | null> {
     if (this.config.dataMode === 'api') {
-      const merchants = await request<Merchant[]>('/merchants');
-      return merchants.find((item) => item.id === merchantId) ?? null;
+      return request<Merchant | null>(`/merchants/${merchantId}`);
     }
-    return readMerchants().find((item) => item.id === merchantId) ?? null;
+    const result = readMerchants().find((item) => item.id === merchantId) ?? null;
+    return result ? migrateMerchant(result) : null;
   }
 
   async updateMerchant(

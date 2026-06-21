@@ -33,6 +33,13 @@ class MerchantListView(APIView):
 
 
 class MerchantDetailView(APIView):
+    def get(self, request, merchant_id: int):
+        merchant = Merchant.objects.filter(id=merchant_id).first()
+        if merchant is None:
+            return error_response('商家不存在', status_code=404)
+        serializer = MerchantSerializer(merchant)
+        return success_response(serializer.data)
+
     def patch(self, request, merchant_id: int):
         merchant = Merchant.objects.filter(id=merchant_id).first()
         if merchant is None:

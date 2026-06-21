@@ -1,4 +1,8 @@
 import {
+  ensureMockStorageCommon,
+  MOCK_DB_CURRENT_VERSION,
+  MOCK_DB_VERSION_KEY,
+  migrateMerchantList,
   STORAGE_KEYS,
   emptyCart,
   seedCategories,
@@ -17,8 +21,8 @@ import {
 } from '@community-store/shared';
 import { readJSON, writeJSON } from './storage';
 
-const MOCK_DB_VERSION = 6;
-const VERSION_KEY = 'community_store_mock_db_version';
+const MOCK_DB_VERSION = MOCK_DB_CURRENT_VERSION;
+const VERSION_KEY = MOCK_DB_VERSION_KEY;
 
 function ensureSeed<T>(key: string, seed: T): T {
   const current = readJSON<T | null>(key, null);
@@ -30,33 +34,31 @@ function ensureSeed<T>(key: string, seed: T): T {
 }
 
 export function ensureMockDB(): void {
-  const storedVersion = readJSON<number>(VERSION_KEY, 0);
-  if (storedVersion < MOCK_DB_VERSION) {
-    writeJSON(STORAGE_KEYS.merchants, seedMerchants);
-    writeJSON(STORAGE_KEYS.categories, seedCategories);
-    writeJSON(STORAGE_KEYS.products, seedProducts);
-    writeJSON(STORAGE_KEYS.users, seedUsers);
-    writeJSON(STORAGE_KEYS.addresses, []);
-    writeJSON(VERSION_KEY, MOCK_DB_VERSION);
-  }
-
-  ensureSeed<Merchant[]>(STORAGE_KEYS.merchants, seedMerchants);
-  ensureSeed<Category[]>(STORAGE_KEYS.categories, seedCategories);
-  ensureSeed<Product[]>(STORAGE_KEYS.products, seedProducts);
-  ensureSeed<Order[]>(STORAGE_KEYS.orders, []);
-  ensureSeed<Cart>(STORAGE_KEYS.cart, {
-    ...emptyCart,
-    updated_at: new Date().toISOString()
+  ensureMockStorageCommon({
+    readJSON: <T,>(key: string, fallback: T | null) => readJSON<T | null>(key, fallback),
+    writeJSON: (key: string, value: unknown) => writeJSON(key, value),
+    extraEnsures: {
+      addresses: () => ensureSeed<Address[]>(STORAGE_KEYS.addresses, []),
+      favorites: () => ensureSeed<Favorite[]>(STORAGE_KEYS.favorites, []),
+      messages: () => ensureSeed<Message[]>(STORAGE_KEYS.messages, []),
+      cart: () =>
+        ensureSeed<Cart>(STORAGE_KEYS.cart, {
+          ...emptyCart,
+          updated_at: new Date().toISOString()
+        })
+    }
   });
-  ensureSeed<User[]>(STORAGE_KEYS.users, seedUsers);
-  ensureSeed<Address[]>(STORAGE_KEYS.addresses, []);
-  ensureSeed<Favorite[]>(STORAGE_KEYS.favorites, []);
-  ensureSeed<Message[]>(STORAGE_KEYS.messages, []);
+  ensureSeed<Order[]>(STORAGE_KEYS.orders, []);
 }
 
 export function readMerchants(): Merchant[] {
   ensureMockDB();
-  return readJSON(STORAGE_KEYS.merchants, seedMerchants);
+  const raw = readJSON<Merchant[] | null>(STORAGE_KEYS.merchants, null);
+  const migrated = migrateMerchantList(raw ?? []);
+  if (!raw || JSON.stringify(raw) !== JSON.stringify(migrated)) {
+    writeMerchants(migrated);
+  }
+  return migrated;
 }
 
 export function writeMerchants(value: Merchant[]): void {

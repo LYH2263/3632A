@@ -41,8 +41,7 @@ export class ApiDataSource implements DataSource {
   }
 
   async getMerchant(merchantId: number): Promise<Merchant | null> {
-    const merchants = await this.listMerchants();
-    return merchants.find((item) => item.id === merchantId) ?? null;
+    return request<Merchant | null>(`/merchants/${merchantId}`);
   }
 
   async updateMerchant(
