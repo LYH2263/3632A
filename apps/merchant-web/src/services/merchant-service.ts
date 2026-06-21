@@ -38,6 +38,45 @@ interface AuthSession {
   user: Omit<User, 'password'>;
 }
 
+export interface SettlementItem {
+  id: number;
+  order_id: number;
+  order_no: string;
+  order_created_at: string;
+  items_amount: string;
+  delivery_fee: string;
+  commission_amount: string;
+  settle_amount: string;
+  created_at: string;
+}
+
+export interface SettlementStatement {
+  id: number;
+  statement_no: string;
+  merchant_id: number;
+  merchant_name: string;
+  period_year: number;
+  period_month: number;
+  status: 'draft' | 'confirmed';
+  order_count: number;
+  items_amount_total: string;
+  delivery_fee_total: string;
+  commission_rate: string;
+  commission_amount: string;
+  settle_amount: string;
+  confirmed_at: string | null;
+  confirmed_by_id: number | null;
+  created_at: string;
+  updated_at: string;
+  items?: SettlementItem[];
+}
+
+export interface SettlementFilterParams {
+  status?: 'draft' | 'confirmed';
+  year?: number;
+  month?: number;
+}
+
 export interface RegisterMerchantPayload {
   username: string;
   password: string;
@@ -642,6 +681,25 @@ class MerchantService {
       has_previous: page > 1,
       reason_choices: REASON_CHOICES
     };
+  }
+
+  async listSettlements(filters?: SettlementFilterParams): Promise<SettlementStatement[]> {
+    const params = new URLSearchParams();
+    if (filters?.status) params.set('status', filters.status);
+    if (filters?.year) params.set('year', String(filters.year));
+    if (filters?.month) params.set('month', String(filters.month));
+    const qs = params.toString();
+    return request<SettlementStatement[]>(`/settlements${qs ? '?' + qs : ''}`);
+  }
+
+  async getSettlementDetail(statementId: number): Promise<SettlementStatement> {
+    return request<SettlementStatement>(`/settlements/${statementId}`);
+  }
+
+  async confirmSettlement(statementId: number): Promise<SettlementStatement> {
+    return request<SettlementStatement>(`/settlements/${statementId}/confirm`, {
+      method: 'POST'
+    });
   }
 
   private _createOrderStatusMessage(order: Order, status: OrderStatus): void {

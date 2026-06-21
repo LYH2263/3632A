@@ -18,6 +18,15 @@
         >
           📒 库存流水
         </el-button>
+        <span class="navbar-divider">|</span>
+        <el-button
+          link
+          type="primary"
+          data-testid="web-navbar-settlement"
+          @click="goToSettlement"
+        >
+          💰 对账单
+        </el-button>
       </div>
       <el-button text type="danger" @click="logout">退出登录</el-button>
     </div>
@@ -934,6 +943,10 @@ function logout(): void {
 
 function goToStockLedger(): void {
   router.push('/stock-ledger');
+}
+
+function goToSettlement(): void {
+  router.push('/settlements');
 }
 
 onMounted(loadData);
