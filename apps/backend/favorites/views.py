@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
 from common.auth import get_request_user
-from common.response import error_response, success_response
+from common.response import error_response, success_response, no_content_response
 from products.models import Product
 from .models import Favorite
 from .serializers import FavoriteSerializer
@@ -83,10 +83,10 @@ class FavoriteDetailView(APIView):
 
         favorite = Favorite.objects.filter(buyer=user, product_id=product_id).first()
         if favorite is None:
-            return success_response(None, status_code=204)
+            return no_content_response()
 
         favorite.delete()
-        return success_response(None, status_code=204)
+        return no_content_response()
 
 
 class FavoriteCheckView(APIView):

@@ -35,7 +35,19 @@ function resolveAuthToken(): string | null {
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
-  const payload = (await response.json()) as { data?: T; message?: string } | T;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  let payload: { data?: T; message?: string } | T;
+
+  try {
+    payload = text ? (JSON.parse(text) as { data?: T; message?: string } | T) : (undefined as T);
+  } catch {
+    payload = undefined as T;
+  }
+
   if (!response.ok) {
     const message =
       typeof payload === 'object' && payload && 'message' in payload
