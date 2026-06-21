@@ -69,6 +69,10 @@ export function useCartStore() {
       return { conflict: false };
     }
 
+    if (product.stock !== -1 && product.stock <= 0) {
+      throw new Error(`${product.name} 已售罄`);
+    }
+
     if (product.stock !== -1 && nextQuantity > product.stock) {
       throw new Error(`${product.name} 已超过库存上限`);
     }

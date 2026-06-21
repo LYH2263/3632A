@@ -243,18 +243,23 @@ class ProductDetailView(APIView):
                 return error_response('stock 必须是整数', status_code=400)
             if new_stock_val != product.stock:
                 if product.stock == -1 or new_stock_val == -1:
-                    change_qty = 0
-                    remark = '库存模式变更'
+                    product.adjust_stock(
+                        quantity=0,
+                        reason=StockLedger.REASON_MERCHANT_ADJUST,
+                        operator=user,
+                        remark=f'库存模式变更：{"不限" if product.stock == -1 else product.stock} → {"不限" if new_stock_val == -1 else new_stock_val}',
+                        allow_negative=True,
+                        target_stock=new_stock_val
+                    )
                 else:
                     change_qty = new_stock_val - product.stock
-                    remark = f'商家调整库存：{product.stock} → {new_stock_val}'
-                product.adjust_stock(
-                    quantity=change_qty,
-                    reason=StockLedger.REASON_MERCHANT_ADJUST,
-                    operator=user,
-                    remark=remark,
-                    allow_negative=True
-                )
+                    product.adjust_stock(
+                        quantity=change_qty,
+                        reason=StockLedger.REASON_MERCHANT_ADJUST,
+                        operator=user,
+                        remark=f'商家调整库存：{product.stock} → {new_stock_val}',
+                        allow_negative=True
+                    )
                 stock_changed = True
 
         if stock_changed:

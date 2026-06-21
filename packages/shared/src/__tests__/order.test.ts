@@ -33,6 +33,27 @@ describe('购物车校验', () => {
     expect(validation.errors.join('')).toContain('超过库存限制');
   });
 
+  it('库存为 0 时阻止提交并提示已售罄', () => {
+    const merchant = seedMerchants[0];
+    const soldOutProduct = {
+      ...seedProducts[0],
+      stock: 0
+    };
+    const cart = {
+      merchant_id: merchant.id,
+      updated_at: new Date().toISOString(),
+      items: [{ product_id: soldOutProduct.id, quantity: 1 }]
+    };
+
+    const validation = validateCartForCheckout(
+      cart,
+      merchant,
+      [soldOutProduct]
+    );
+    expect(validation.valid).toBe(false);
+    expect(validation.errors.join('')).toContain('已售罄');
+  });
+
   it('空购物车应返回错误', () => {
     const merchant = seedMerchants[0];
     const cart = {

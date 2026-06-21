@@ -83,16 +83,25 @@ class Product(models.Model):
         operator=None,
         order=None,
         remark: str = '',
-        allow_negative: bool = False
+        allow_negative: bool = False,
+        target_stock: int | None = None
     ) -> 'StockLedger':
-        if quantity == 0:
-            raise ValueError('变更数量不能为 0')
-
         stock_before = self.stock
 
-        if self.stock == -1:
-            stock_after = -1
+        if target_stock is not None:
+            if target_stock == -1:
+                stock_after = -1
+            else:
+                stock_after = target_stock
+                if stock_after < 0 and not allow_negative:
+                    raise ValueError(f'库存不能为负数：目标 {target_stock}')
         else:
+            if quantity == 0:
+                raise ValueError('变更数量不能为 0')
+
+            if self.stock == -1:
+                raise ValueError('不限库存模式下不能进行数量增减，请先设置具体库存值')
+
             stock_after = self.stock + quantity
             if stock_after < 0 and not allow_negative:
                 raise ValueError(f'库存不足：当前 {self.stock}，需变更 {quantity}')

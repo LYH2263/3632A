@@ -133,6 +133,10 @@ def validate_cart(
             errors.append(f"{product.name} 数量必须是正整数")
             continue
 
+        if product.stock != -1 and product.stock <= 0:
+            errors.append(f"{product.name} 已售罄")
+            continue
+
         if product.stock != -1 and quantity > product.stock:
             errors.append(f"{product.name} 超过库存限制")
             continue

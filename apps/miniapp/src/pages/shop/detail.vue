@@ -98,10 +98,19 @@
               查看详情
             </button>
             <div class="counter">
-              <button :data-testid="`shop-minus-${product.id}`" @click="changeQuantity(product, -1)">-</button>
+              <button
+                :data-testid="`shop-minus-${product.id}`"
+                :disabled="cartStore.itemQuantity(product.id) <= 0"
+                @click="changeQuantity(product, -1)"
+              >-</button>
               <span class="counter-value" :data-testid="`shop-quantity-${product.id}`">{{ cartStore.itemQuantity(product.id) }}</span>
-              <button class="primary" :data-testid="`shop-plus-${product.id}`" @click="changeQuantity(product, 1)">
-                +
+              <button
+                class="primary"
+                :data-testid="`shop-plus-${product.id}`"
+                :disabled="isProductSoldOut(product)"
+                @click="changeQuantity(product, 1)"
+              >
+                {{ isProductSoldOut(product) ? '售罄' : '+' }}
               </button>
             </div>
           </div>
@@ -191,6 +200,10 @@ const displayProducts = computed(() => {
   );
 });
 
+function isProductSoldOut(product: Product): boolean {
+  return product.stock !== -1 && product.stock <= 0;
+}
+
 function selectCategory(categoryId: number): void {
   selectedCategoryId.value = categoryId;
 }
@@ -259,6 +272,10 @@ async function changeQuantity(product: Product, step: number): Promise<void> {
   }
   if (!isMerchantOpen(merchant.value.business_hours, merchant.value.is_open)) {
     showMessage('商家当前非营业时段，暂无法加购');
+    return;
+  }
+  if (step > 0 && isProductSoldOut(product)) {
+    showMessage(`${product.name} 已售罄`);
     return;
   }
   try {

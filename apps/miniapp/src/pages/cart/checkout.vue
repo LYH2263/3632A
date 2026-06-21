@@ -28,12 +28,20 @@
                 <view class="table-td table-cell-price">{{ formatMoney(item.product.price) }}</view>
                 <view class="table-td table-cell-qty">
                   <div class="counter">
-                    <button :data-testid="`checkout-item-minus-${item.product.id}`" @click="adjust(item.product, -1)">
+                    <button
+                      :data-testid="`checkout-item-minus-${item.product.id}`"
+                      :disabled="item.quantity <= 1"
+                      @click="adjust(item.product, -1)"
+                    >
                       -
                     </button>
                     <span class="counter-value" :data-testid="`checkout-item-quantity-${item.product.id}`">{{ item.quantity }}</span>
-                    <button :data-testid="`checkout-item-plus-${item.product.id}`" @click="adjust(item.product, 1)">
-                      +
+                    <button
+                      :data-testid="`checkout-item-plus-${item.product.id}`"
+                      :disabled="isProductSoldOut(item.product) || (item.product.stock !== -1 && item.quantity >= item.product.stock)"
+                      @click="adjust(item.product, 1)"
+                    >
+                      {{ isProductSoldOut(item.product) ? '售罄' : '+' }}
                     </button>
                   </div>
                 </view>
@@ -145,11 +153,11 @@
           <button
             class="primary"
             data-testid="checkout-submit"
-            :disabled="submitting"
+            :disabled="submitting || hasSoldOutItems"
             @click="submitOrder"
             @tap="submitOrder"
           >
-            {{ submitting ? '提交中...' : '提交订单' }}
+            {{ submitting ? '提交中...' : (hasSoldOutItems ? '存在已售罄商品' : '提交订单') }}
           </button>
           <view v-if="submitFeedback" class="checkout-submit-feedback" data-testid="checkout-submit-feedback">
             {{ submitFeedback }}
@@ -232,6 +240,14 @@ const cartItems = computed(() => {
     .filter((item): item is { product: Product; quantity: number; subtotal: number } =>
       item !== null
     );
+});
+
+function isProductSoldOut(product: Product): boolean {
+  return product.stock !== -1 && product.stock <= 0;
+}
+
+const hasSoldOutItems = computed(() => {
+  return cartItems.value.some((item) => isProductSoldOut(item.product));
 });
 
 const itemsAmount = computed(() =>
@@ -345,6 +361,10 @@ function parseCoordInput(): void {
 
 async function adjust(product: Product, step: number): Promise<void> {
   if (!merchant.value) {
+    return;
+  }
+  if (step > 0 && isProductSoldOut(product)) {
+    showMessage(`${product.name} 已售罄`);
     return;
   }
   try {

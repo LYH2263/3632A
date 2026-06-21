@@ -32,15 +32,25 @@
             <div class="product-detail-quantity">
               <span class="muted">购买数量</span>
               <div class="counter">
-                <button data-testid="product-minus" @click="changeQuantity(-1)">-</button>
+                <button data-testid="product-minus" :disabled="quantity <= 1" @click="changeQuantity(-1)">-</button>
                 <span class="counter-value" data-testid="product-quantity">{{ quantity }}</span>
-                <button class="primary" data-testid="product-plus" @click="changeQuantity(1)">+</button>
+                <button
+                  class="primary"
+                  data-testid="product-plus"
+                  :disabled="product && product.stock !== -1 && quantity >= product.stock"
+                  @click="changeQuantity(1)"
+                >+</button>
               </div>
             </div>
 
             <div class="flex-row mt-md">
               <button class="secondary" data-testid="product-back" @click="goBack">返回商品列表</button>
-              <button class="primary" data-testid="product-add-cart" @click="addToCart">加入购物车</button>
+              <button
+                class="primary"
+                data-testid="product-add-cart"
+                :disabled="isSoldOut"
+                @click="addToCart"
+              >{{ isSoldOut ? '已售罄' : '加入购物车' }}</button>
             </div>
           </div>
         </article>
@@ -52,7 +62,7 @@
 
 <script setup lang="ts">
 import type { Merchant, Product } from '@community-store/shared';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
 import { useCartStore } from '../../stores/cart';
@@ -75,7 +85,15 @@ const defaultProductImage = '/static/images/products/default.jpg';
 const productId = ref(0);
 const merchantId = ref(0);
 
+const isSoldOut = computed(() => {
+  return product.value !== null && product.value.stock !== -1 && product.value.stock <= 0;
+});
+
 function changeQuantity(step: number): void {
+  if (isSoldOut.value) {
+    showMessage('商品已售罄');
+    return;
+  }
   const next = quantity.value + step;
   if (next <= 0) {
     return;
@@ -89,6 +107,10 @@ function changeQuantity(step: number): void {
 
 async function addToCart(): Promise<void> {
   if (!product.value || !merchant.value) {
+    return;
+  }
+  if (isSoldOut.value) {
+    showMessage('商品已售罄，无法加入购物车');
     return;
   }
   const result = await cartStore.addItem(

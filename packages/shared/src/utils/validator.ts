@@ -64,6 +64,11 @@ function validateCartItems(
       return;
     }
 
+    if (product.stock !== -1 && product.stock <= 0) {
+      errors.push(`${product.name} 已售罄`);
+      return;
+    }
+
     if (product.stock !== -1 && item.quantity > product.stock) {
       errors.push(`${product.name} 超过库存限制`);
     }
