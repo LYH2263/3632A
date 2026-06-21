@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 
 from merchants.models import Merchant
 from products.models import Category, Product
-from users.models import StoreUser
+from users.models import Address, StoreUser
 
 FRUIT_STORE_HOURS = {
     '0': {'enabled': True, 'start': '22:00', 'end': '02:00'},
@@ -149,13 +149,25 @@ class Command(BaseCommand):
                 }
             )
 
-        StoreUser.objects.get_or_create(
+        buyer, _ = StoreUser.objects.get_or_create(
             username='buyer',
             defaults={
                 'password': make_password('buyer123'),
                 'role': 'buyer',
                 'nickname': '社区住户',
                 'phone': '13800138000'
+            }
+        )
+
+        Address.objects.get_or_create(
+            buyer=buyer,
+            receiver_name='张三',
+            defaults={
+                'receiver_phone': '13800138000',
+                'receiver_address': '幸福社区 8 栋',
+                'latitude': 39.9042,
+                'longitude': 116.4074,
+                'is_default': True
             }
         )
 

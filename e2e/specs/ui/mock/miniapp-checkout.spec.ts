@@ -8,7 +8,11 @@ import {
   setStorageJSON
 } from '../../../helpers/runtime';
 import { expectLatestDialogContains } from '../../../helpers/assertions';
-import { STORAGE_KEYS } from '../../../helpers/keys';
+import { DEFAULT_MOCK_ADDRESS, STORAGE_KEYS } from '../../../helpers/keys';
+
+async function seedMockCheckoutAddress(page: Page): Promise<void> {
+  await setStorageJSON(page, STORAGE_KEYS.addresses, [DEFAULT_MOCK_ADDRESS]);
+}
 
 async function openCheckoutWithCart(
   page: Page,
@@ -16,6 +20,7 @@ async function openCheckoutWithCart(
   merchantId = 1
 ): Promise<void> {
   await gotoMiniapp(page, '/pages/home/index', 'mock');
+  await seedMockCheckoutAddress(page);
 
   await setStorageJSON(page, STORAGE_KEYS.cart, {
     merchant_id: merchantId,
@@ -26,10 +31,7 @@ async function openCheckoutWithCart(
   await page.goto(`${MINIAPP_BASE_URL}/pages/cart/checkout?merchantId=${merchantId}`);
 }
 
-async function fillCheckoutForm(page: Page): Promise<void> {
-  await fillByTestId(page, 'checkout-receiver-name', '张三');
-  await fillByTestId(page, 'checkout-receiver-phone', '13800138000');
-  await fillByTestId(page, 'checkout-receiver-address', '幸福社区 8 栋');
+async function fillCheckoutRemark(page: Page): Promise<void> {
   await fillByTestId(page, 'checkout-remark', 'E2E 备注');
 }
 
@@ -39,35 +41,24 @@ test.describe('UI-MOCK Checkout', () => {
     await expect(page.getByTestId('checkout-merchant-missing')).toBeVisible();
   });
 
-  test('CHECKOUT-MOCK-002 空购物车与表单校验边界', async ({ page }) => {
+  test('CHECKOUT-MOCK-002 空购物车与地址校验边界', async ({ page }) => {
     await openCheckoutWithCart(page, [], 1);
     await expect(page.getByTestId('checkout-cart-empty')).toBeVisible();
 
     await page.getByTestId('checkout-submit').click();
-    await expectLatestDialogContains(page, '收货人姓名必填');
+    await expectLatestDialogContains(page, '购物车为空');
 
-    await fillByTestId(page, 'checkout-receiver-name', '张三');
-    await clearDialogs(page);
-    await page.getByTestId('checkout-submit').click();
-    await expectLatestDialogContains(page, '手机号必填');
+    await setStorageJSON(page, STORAGE_KEYS.addresses, []);
+    await page.reload();
+    await expect(page.getByTestId('checkout-address-empty')).toBeVisible();
 
-    await fillByTestId(page, 'checkout-receiver-phone', '123');
-    await clearDialogs(page);
     await page.getByTestId('checkout-submit').click();
-    await expectLatestDialogContains(page, '手机号格式错误');
-
-    // 重开页面避免 uni-input 在同一用例内多次覆写值时出现平台差异。
-    await openCheckoutWithCart(page, [], 1);
-    await fillByTestId(page, 'checkout-receiver-name', '张三');
-    await fillByTestId(page, 'checkout-receiver-phone', '13800138000');
-    await clearDialogs(page);
-    await page.getByTestId('checkout-submit').click();
-    await expectLatestDialogContains(page, '收货地址必填');
+    await expectLatestDialogContains(page, '请选择收货地址');
   });
 
   test('CHECKOUT-MOCK-003 未达起送价阻断下单', async ({ page }) => {
     await openCheckoutWithCart(page, [{ product_id: 1001, quantity: 1 }], 1);
-    await fillCheckoutForm(page);
+    await fillCheckoutRemark(page);
 
     await page.getByTestId('checkout-submit').click();
     await expectLatestDialogContains(page, '未达到起送价');
@@ -76,7 +67,8 @@ test.describe('UI-MOCK Checkout', () => {
 
   test('CHECKOUT-MOCK-004 成功下单跳转详情', async ({ page }) => {
     await openCheckoutWithCart(page, [{ product_id: 1001, quantity: 4 }], 1);
-    await fillCheckoutForm(page);
+    await expect(page.getByTestId('checkout-selected-name')).toHaveText('张三');
+    await fillCheckoutRemark(page);
 
     await page.getByTestId('checkout-submit').click();
 
@@ -87,6 +79,7 @@ test.describe('UI-MOCK Checkout', () => {
 
   test('CHECKOUT-MOCK-005 越库存阻断下单', async ({ page }) => {
     await gotoMiniapp(page, '/pages/home/index', 'mock');
+    await seedMockCheckoutAddress(page);
 
     const patchedProducts = seedProducts.map((item) =>
       item.id === 1001 ? { ...item, stock: 1 } : item
@@ -100,7 +93,7 @@ test.describe('UI-MOCK Checkout', () => {
     });
 
     await page.goto(`${MINIAPP_BASE_URL}/pages/cart/checkout?merchantId=1`);
-    await fillCheckoutForm(page);
+    await fillCheckoutRemark(page);
 
     await page.getByTestId('checkout-submit').click();
     await expectLatestDialogContains(page, '超过库存限制');

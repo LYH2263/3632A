@@ -172,13 +172,12 @@ class AddressDetailView(APIView):
             address.longitude = payload['longitude']
 
         if 'is_default' in payload:
-            if payload['is_default']:
-                set_default_address_exclusive(user, address.id)
-            else:
-                address.is_default = False
-                address.save()
-        else:
-            address.save()
+            address.is_default = bool(payload['is_default'])
+
+        address.save()
+
+        if payload.get('is_default'):
+            set_default_address_exclusive(user, address.id)
 
         address.refresh_from_db()
         return success_response(AddressSerializer(address).data)

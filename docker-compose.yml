@@ -77,6 +77,9 @@ services:
       dockerfile: apps/merchant-web/Dockerfile
     container_name: community-store-merchant-web
     restart: unless-stopped
+    environment:
+      MERCHANT_WEB_DATA_MODE: ${MERCHANT_WEB_DATA_MODE:-api}
+      MERCHANT_WEB_API_BASE_URL: ${MERCHANT_WEB_API_BASE_URL:-http://localhost:8000/api/v1}
     depends_on:
       backend:
         condition: service_started

@@ -109,6 +109,18 @@ class Product(models.Model):
         self.stock = stock_after
         self.save(update_fields=['stock'])
 
+        if target_stock is not None:
+            if stock_before == -1 and stock_after == -1:
+                ledger_change = 0
+            elif stock_before == -1:
+                ledger_change = stock_after
+            elif stock_after == -1:
+                ledger_change = -stock_before
+            else:
+                ledger_change = stock_after - stock_before
+        else:
+            ledger_change = quantity
+
         operator_id = None
         operator_role = ''
         operator_name = ''
@@ -120,7 +132,7 @@ class Product(models.Model):
         return StockLedger.objects.create(
             product=self,
             merchant=self.merchant,
-            change_quantity=quantity,
+            change_quantity=ledger_change,
             stock_before=stock_before,
             stock_after=stock_after,
             reason=reason,

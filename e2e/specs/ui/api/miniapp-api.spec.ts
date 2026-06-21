@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillByTestId, gotoMiniapp } from '../../../helpers/runtime';
+import { gotoMiniapp } from '../../../helpers/runtime';
 import { resetBackendData } from '../../../helpers/backend';
 
 test.describe('UI-API Miniapp', () => {
@@ -35,10 +35,8 @@ test.describe('UI-API Miniapp', () => {
 
     await page.getByTestId('shop-go-checkout').click();
     await expect(page.getByTestId('checkout-page')).toBeVisible();
+    await expect(page.getByTestId('checkout-selected-name')).toHaveText('张三');
 
-    await fillByTestId(page, 'checkout-receiver-name', '张三');
-    await fillByTestId(page, 'checkout-receiver-phone', '13800138000');
-    await fillByTestId(page, 'checkout-receiver-address', '幸福社区 8 栋');
     await page.getByTestId('checkout-submit').click();
 
     await expect(page).toHaveURL(/\/pages\/order\/detail\?orderId=\d+/);

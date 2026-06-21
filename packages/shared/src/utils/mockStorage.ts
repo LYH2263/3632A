@@ -75,8 +75,8 @@ export function migrateMerchantList(list: Merchant[]): Merchant[] {
   return result.length > 0 ? result : deepClone(seedMerchants);
 }
 
-export interface StorageReadFn<T> = (key: string, fallback: T | null) => T | null;
-export interface StorageWriteFn = (key: string, value: unknown) => void;
+export type StorageReadFn<T> = (key: string, fallback: T | null) => T | null;
+export type StorageWriteFn = (key: string, value: unknown) => void;
 
 export interface MockStorageEnsureOptions {
   readJSON: StorageReadFn<unknown>;

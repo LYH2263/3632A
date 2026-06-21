@@ -18,7 +18,11 @@ function resolveAuthToken(): string | null {
       | { id?: number };
     if (typeof parsed === 'object' && parsed) {
       if ('token' in parsed && typeof parsed.token === 'string' && parsed.token.trim()) {
-        return parsed.token;
+        const token = parsed.token.trim();
+        if (token.startsWith('mock-token-')) {
+          return token.replace('mock-token-', 'django-token-');
+        }
+        return token;
       }
       if ('id' in parsed && typeof parsed.id === 'number') {
         return `django-token-${parsed.id}`;

@@ -6,13 +6,16 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY apps/miniapp/package.json apps/miniapp/package.json
+COPY apps/merchant-web/package.json apps/merchant-web/package.json
 
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY packages/shared packages/shared
+COPY apps/miniapp apps/miniapp
+
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @community-store/shared build
-RUN pnpm --filter miniapp build:h5
+RUN pnpm --filter miniapp... build:h5
 
 FROM nginx:stable
 COPY apps/miniapp/nginx.conf /etc/nginx/conf.d/default.conf

@@ -144,9 +144,23 @@ function ensureMockStorage(): void {
         if (!readJSON(STORAGE_KEYS.messages, null)) {
           writeJSON(STORAGE_KEYS.messages, []);
         }
+      },
+      settlements: () => {
+        if (!readJSON(STORAGE_KEYS.settlements, null)) {
+          writeJSON(STORAGE_KEYS.settlements, [] as SettlementStatement[]);
+        }
       }
     }
   });
+}
+
+function readSettlements(): SettlementStatement[] {
+  ensureMockStorage();
+  return readJSON(STORAGE_KEYS.settlements, [] as SettlementStatement[]);
+}
+
+function writeSettlements(value: SettlementStatement[]): void {
+  writeJSON(STORAGE_KEYS.settlements, value);
 }
 
 function readCategories(): Category[] {
@@ -259,7 +273,7 @@ class MerchantService {
       phone: user.phone
     };
     writeAuthSession({
-      token: `mock-token-${authUser.id}`,
+      token: `django-token-${authUser.id}`,
       user: authUser
     });
     return authUser;
@@ -330,7 +344,7 @@ class MerchantService {
     };
 
     writeAuthSession({
-      token: `mock-token-${authUser.id}`,
+      token: `django-token-${authUser.id}`,
       user: authUser
     });
     return authUser;
@@ -684,22 +698,90 @@ class MerchantService {
   }
 
   async listSettlements(filters?: SettlementFilterParams): Promise<SettlementStatement[]> {
-    const params = new URLSearchParams();
-    if (filters?.status) params.set('status', filters.status);
-    if (filters?.year) params.set('year', String(filters.year));
-    if (filters?.month) params.set('month', String(filters.month));
-    const qs = params.toString();
-    return request<SettlementStatement[]>(`/settlements${qs ? '?' + qs : ''}`);
+    if (this.config.dataMode === 'api') {
+      const params = new URLSearchParams();
+      if (filters?.status) params.set('status', filters.status);
+      if (filters?.year) params.set('year', String(filters.year));
+      if (filters?.month) params.set('month', String(filters.month));
+      const qs = params.toString();
+      return request<SettlementStatement[]>(`/settlements${qs ? '?' + qs : ''}`);
+    }
+
+    const authUser = readAuthSession()?.user;
+    if (!authUser?.merchant_id) {
+      throw new Error('请先登录');
+    }
+
+    let result = readSettlements().filter((item) => item.merchant_id === authUser.merchant_id);
+    if (filters?.status) {
+      result = result.filter((item) => item.status === filters.status);
+    }
+    if (filters?.year) {
+      result = result.filter((item) => item.period_year === filters.year);
+    }
+    if (filters?.month) {
+      result = result.filter((item) => item.period_month === filters.month);
+    }
+    return result.sort((a, b) => {
+      if (a.period_year !== b.period_year) {
+        return b.period_year - a.period_year;
+      }
+      return b.period_month - a.period_month;
+    });
   }
 
   async getSettlementDetail(statementId: number): Promise<SettlementStatement> {
-    return request<SettlementStatement>(`/settlements/${statementId}`);
+    if (this.config.dataMode === 'api') {
+      return request<SettlementStatement>(`/settlements/${statementId}`);
+    }
+
+    const authUser = readAuthSession()?.user;
+    if (!authUser?.merchant_id) {
+      throw new Error('请先登录');
+    }
+
+    const statement = readSettlements().find(
+      (item) => item.id === statementId && item.merchant_id === authUser.merchant_id
+    );
+    if (!statement) {
+      throw new Error('对账单不存在');
+    }
+    return statement;
   }
 
   async confirmSettlement(statementId: number): Promise<SettlementStatement> {
-    return request<SettlementStatement>(`/settlements/${statementId}/confirm`, {
-      method: 'POST'
-    });
+    if (this.config.dataMode === 'api') {
+      return request<SettlementStatement>(`/settlements/${statementId}/confirm`, {
+        method: 'POST'
+      });
+    }
+
+    const authUser = readAuthSession()?.user;
+    if (!authUser?.merchant_id) {
+      throw new Error('请先登录');
+    }
+
+    const statements = readSettlements();
+    const index = statements.findIndex(
+      (item) => item.id === statementId && item.merchant_id === authUser.merchant_id
+    );
+    if (index < 0) {
+      throw new Error('对账单不存在');
+    }
+    if (statements[index].status !== 'draft') {
+      throw new Error('只有草稿状态的对账单可以确认');
+    }
+
+    const confirmed: SettlementStatement = {
+      ...statements[index],
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+      confirmed_by_id: authUser.id,
+      updated_at: new Date().toISOString()
+    };
+    statements[index] = confirmed;
+    writeSettlements(statements);
+    return confirmed;
   }
 
   private _createOrderStatusMessage(order: Order, status: OrderStatus): void {

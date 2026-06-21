@@ -326,7 +326,7 @@ class OrderListView(APIView):
 
         for item in payload['cart_items']:
             product = Product.objects.filter(id=item['product_id'], merchant=merchant).first()
-            if product:
+            if product and product.stock != -1:
                 quantity = int(item['quantity'])
                 product.adjust_stock(
                     quantity=-quantity,
@@ -392,7 +392,7 @@ class OrderStatusUpdateView(APIView):
         if next_status == 'canceled' and order.status != 'canceled':
             for item in order.items_snapshot:
                 product = Product.objects.filter(id=item['product_id']).first()
-                if product:
+                if product and product.stock != -1:
                     quantity = int(item['quantity'])
                     try:
                         product.adjust_stock(
@@ -403,8 +403,11 @@ class OrderStatusUpdateView(APIView):
                             remark=f'订单 {order.order_no} 取消，返还库存',
                             allow_negative=False
                         )
-                    except ValueError:
-                        pass
+                    except ValueError as exc:
+                        return error_response(
+                            f'{product.name} 库存返还失败：{exc}',
+                            status_code=400
+                        )
 
         order.status = next_status
         order.save(update_fields=['status', 'updated_at'])

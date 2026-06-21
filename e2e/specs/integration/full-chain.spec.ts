@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { fillByTestId, gotoMerchantWeb, gotoMiniapp } from '../../helpers/runtime';
+import { gotoMerchantWeb, gotoMiniapp } from '../../helpers/runtime';
 import { resetBackendData } from '../../helpers/backend';
 
 function loginUsernameInput(page: import('@playwright/test').Page) {
@@ -19,10 +19,7 @@ async function createOrderByMiniapp(page: import('@playwright/test').Page): Prom
   await firstPlusButton.click();
   await firstPlusButton.click();
   await page.getByTestId('shop-go-checkout').click();
-
-  await fillByTestId(page, 'checkout-receiver-name', '张三');
-  await fillByTestId(page, 'checkout-receiver-phone', '13800138000');
-  await fillByTestId(page, 'checkout-receiver-address', '幸福社区 8 栋');
+  await expect(page.getByTestId('checkout-selected-name')).toHaveText('张三');
   await page.getByTestId('checkout-submit').click();
 
   await expect(page).toHaveURL(/\/pages\/order\/detail\?orderId=\d+/);
