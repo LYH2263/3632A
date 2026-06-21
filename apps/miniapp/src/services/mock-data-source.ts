@@ -425,13 +425,17 @@ export class MockDataSource implements DataSource {
       target.longitude = payload.longitude ?? null;
     }
 
-    if (payload.is_default) {
-      addresses.forEach((item) => {
-        if (item.buyer_id === target.buyer_id) {
-          item.is_default = false;
-        }
-      });
-      target.is_default = true;
+    if (payload.is_default !== undefined) {
+      if (payload.is_default) {
+        addresses.forEach((item) => {
+          if (item.buyer_id === target.buyer_id) {
+            item.is_default = false;
+          }
+        });
+        target.is_default = true;
+      } else {
+        target.is_default = false;
+      }
     }
 
     target.updated_at = new Date().toISOString();

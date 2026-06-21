@@ -171,8 +171,12 @@ class AddressDetailView(APIView):
         if 'longitude' in payload:
             address.longitude = payload['longitude']
 
-        if 'is_default' in payload and payload['is_default']:
-            set_default_address_exclusive(user, address.id)
+        if 'is_default' in payload:
+            if payload['is_default']:
+                set_default_address_exclusive(user, address.id)
+            else:
+                address.is_default = False
+                address.save()
         else:
             address.save()
 

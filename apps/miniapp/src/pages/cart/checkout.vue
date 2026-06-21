@@ -291,14 +291,18 @@ async function loadData(): Promise<void> {
 async function loadAddresses(): Promise<void> {
   try {
     addresses.value = await dataSource.listAddresses(sessionStore.state.user.id);
-    if (!selectedAddress.value && addresses.value.length > 0) {
+    if (addresses.value.length > 0) {
       const defaultAddr = addresses.value.find((a) => a.is_default);
-      selectedAddress.value = defaultAddr || addresses.value[0];
-    } else if (selectedAddress.value) {
-      const updated = addresses.value.find((a) => a.id === selectedAddress.value?.id);
-      if (updated) {
-        selectedAddress.value = updated;
+      if (defaultAddr) {
+        selectedAddress.value = defaultAddr;
+      } else if (selectedAddress.value) {
+        const updated = addresses.value.find((a) => a.id === selectedAddress.value?.id);
+        selectedAddress.value = updated || addresses.value[0];
+      } else {
+        selectedAddress.value = addresses.value[0];
       }
+    } else {
+      selectedAddress.value = null;
     }
     syncCoordFromAddress();
   } catch (error) {
@@ -312,6 +316,11 @@ function syncCoordFromAddress(): void {
     coordLat.value = addr.latitude;
     coordLng.value = addr.longitude;
     form.coordText = `${addr.latitude},${addr.longitude}`;
+    coordError.value = '';
+  } else {
+    coordLat.value = null;
+    coordLng.value = null;
+    form.coordText = '';
     coordError.value = '';
   }
 }
