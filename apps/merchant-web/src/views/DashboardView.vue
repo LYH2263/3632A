@@ -88,6 +88,21 @@
       <template #header>
         <div class="block-title" data-testid="web-merchant-card-title">店铺信息维护</div>
       </template>
+      <el-alert
+        v-if="merchantForm.delivery_radius_km > 0 && (merchantForm.latitude == null || merchantForm.latitude === '' || merchantForm.longitude == null || merchantForm.longitude === '')"
+        type="warning"
+        show-icon
+        :closable="false"
+        class="delivery-config-warning"
+        data-testid="web-delivery-config-warning"
+      >
+        <template #title>
+          ⚠️ 配送范围配置不完整
+        </template>
+        <template #default>
+          已设置配送半径 {{ merchantForm.delivery_radius_km }} 公里，但未填写店铺坐标。请填写纬度和经度，否则买家结算时不会校验配送范围。
+        </template>
+      </el-alert>
       <el-form label-width="120px" :model="merchantForm" data-testid="web-merchant-form">
         <el-form-item label="店铺名称">
           <el-input :model-value="merchant.name" data-testid="web-merchant-name" disabled />

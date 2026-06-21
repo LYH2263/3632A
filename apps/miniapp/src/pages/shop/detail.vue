@@ -18,9 +18,19 @@
           <div class="shop-header-meta">
             <p class="muted" data-testid="shop-merchant-phone">📞 {{ merchant.phone }}</p>
             <p class="muted" data-testid="shop-merchant-note">🚚 {{ merchant.delivery_note }}</p>
-            <p class="muted" v-if="merchant.delivery_radius_km > 0" data-testid="shop-merchant-radius">
-              📍 配送范围：{{ merchant.delivery_radius_km }} 公里内
-            </p>
+            <template v-if="merchant.delivery_radius_km > 0">
+              <p class="muted" data-testid="shop-merchant-radius">
+                📍 配送范围：{{ merchant.delivery_radius_km }} 公里内
+              </p>
+              <p
+                v-if="merchant.latitude == null || merchant.longitude == null"
+                class="muted"
+                style="color: #d97706;"
+                data-testid="shop-merchant-radius-incomplete"
+              >
+                ⚠️ 商家坐标未配置，结算时暂不校验配送范围
+              </p>
+            </template>
             <p class="muted" data-testid="shop-merchant-fee">
               💰 配送费：{{ formatMoney(merchant.delivery_fee) }} / 起送价：{{ formatMoney(merchant.min_order_amount) }}
             </p>

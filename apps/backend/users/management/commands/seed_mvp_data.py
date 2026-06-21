@@ -30,32 +30,40 @@ class Command(BaseCommand):
     help = '初始化社区商店 MVP 示例数据'
 
     def handle(self, *args, **options):
-        merchant_a, _ = Merchant.objects.get_or_create(
+        merchant_a_defaults = {
+            'phone': '020-11110001',
+            'address': '幸福社区 1 号楼底商',
+            'delivery_note': '2 公里内 30 分钟配送',
+            'min_order_amount': 25,
+            'delivery_fee': 3,
+            'delivery_radius_km': 2,
+            'latitude': 39.9042,
+            'longitude': 116.4074,
+            'is_open': True,
+            'business_hours': FRUIT_STORE_HOURS,
+            'low_stock_threshold': 5
+        }
+        merchant_a, created = Merchant.objects.update_or_create(
             name='鲜果超市',
-            defaults={
-                'phone': '020-11110001',
-                'address': '幸福社区 1 号楼底商',
-                'delivery_note': '2 公里内 30 分钟配送',
-                'min_order_amount': 25,
-                'delivery_fee': 3,
-                'is_open': True,
-                'business_hours': FRUIT_STORE_HOURS,
-                'low_stock_threshold': 5
-            }
+            defaults=merchant_a_defaults
         )
 
-        merchant_b, _ = Merchant.objects.get_or_create(
+        merchant_b_defaults = {
+            'phone': '020-22220002',
+            'address': '幸福社区 3 号楼底商',
+            'delivery_note': '晚 10 点前配送',
+            'min_order_amount': 18,
+            'delivery_fee': 2,
+            'delivery_radius_km': 3,
+            'latitude': 39.9055,
+            'longitude': 116.4088,
+            'is_open': True,
+            'business_hours': MARKET_HOURS,
+            'low_stock_threshold': 5
+        }
+        merchant_b, created = Merchant.objects.update_or_create(
             name='便民小超',
-            defaults={
-                'phone': '020-22220002',
-                'address': '幸福社区 3 号楼底商',
-                'delivery_note': '晚 10 点前配送',
-                'min_order_amount': 18,
-                'delivery_fee': 2,
-                'is_open': True,
-                'business_hours': MARKET_HOURS,
-                'low_stock_threshold': 5
-            }
+            defaults=merchant_b_defaults
         )
 
         cat_a_fruit, _ = Category.objects.get_or_create(

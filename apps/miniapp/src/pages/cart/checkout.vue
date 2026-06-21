@@ -55,8 +55,16 @@
           <p v-if="deliveryInfo" class="muted" data-testid="checkout-delivery-range">
             📍 {{ deliveryInfo }}
           </p>
-          <p v-if="deliveryDistanceText !== null" class="muted" data-testid="checkout-distance">
-            与店铺距离：{{ deliveryDistanceText }}
+          <p v-if="hasIncompleteDeliveryConfig" class="muted" style="color: #d97706;">
+            ⚠️ 商家配送范围配置不完整，暂不校验配送范围
+          </p>
+          <p
+            v-if="deliveryStatusText"
+            class="delivery-status"
+            :class="deliveryStatusText.class"
+            data-testid="checkout-delivery-status"
+          >
+            {{ deliveryStatusText.text }}
           </p>
           <p data-testid="checkout-total-amount">总金额：<strong class="price">{{ formatMoney(totalAmount) }}</strong></p>
           <p v-if="itemsAmount < merchant.min_order_amount" class="muted" data-testid="checkout-min-order-tip">
@@ -117,7 +125,7 @@
           </div>
         </article>
 
-        <article class="card" v-if="hasDeliveryRangeConfig" data-testid="checkout-coord-card">
+        <article class="card" v-if="hasDeliveryRangeConfig && !addressHasCoords" data-testid="checkout-coord-card">
           <h3>收货坐标（用于配送范围校验）</h3>
           <div class="field">
             <label for="checkout-coord">地址坐标（纬度,经度）</label>
@@ -134,7 +142,7 @@
               已计算距离店铺：{{ deliveryDistanceText }}
             </p>
             <p v-else class="muted">
-              请输入坐标以校验是否在 {{ merchant?.delivery_radius_km }} 公里配送范围内
+              请输入坐标以校验是否在 {{ merchant?.delivery_radius_km }} 公里配送范围内，或在地址管理中为地址设置坐标
             </p>
           </div>
         </article>
@@ -184,7 +192,7 @@ import {
   type Merchant,
   type Product
 } from '@community-store/shared';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
 import { getDataSource } from '../../services/data-source';
@@ -261,6 +269,14 @@ const totalAmount = computed(() => {
   return itemsAmount.value + merchant.value.delivery_fee;
 });
 
+const hasIncompleteDeliveryConfig = computed(() => {
+  if (!merchant.value) return false;
+  const radius = merchant.value.delivery_radius_km ?? 0;
+  const lat = merchant.value.latitude;
+  const lng = merchant.value.longitude;
+  return radius > 0 && (lat == null || lng == null);
+});
+
 const hasDeliveryRangeConfig = computed(() => {
   if (!merchant.value) return false;
   const radius = merchant.value.delivery_radius_km ?? 0;
@@ -273,7 +289,39 @@ const deliveryInfo = computed(() => {
   if (!merchant.value) return '';
   const radius = merchant.value.delivery_radius_km ?? 0;
   if (radius <= 0) return '';
+  const lat = merchant.value.latitude;
+  const lng = merchant.value.longitude;
+  if (lat == null || lng == null) {
+    return `配送半径 ${radius} 公里内（店铺坐标未配置，暂不校验）`;
+  }
   return `配送半径 ${radius} 公里内`;
+});
+
+const deliveryStatusText = computed(() => {
+  if (!hasDeliveryRangeConfig.value) return null;
+  if (coordLat.value == null || coordLng.value == null) {
+    return { text: '⚪ 待校验', class: 'status-pending' };
+  }
+  const mLat = merchant.value!.latitude!;
+  const mLng = merchant.value!.longitude!;
+  const dist = haversineDistanceKm(
+    { lat: mLat, lng: mLng },
+    { lat: coordLat.value, lng: coordLng.value }
+  );
+  const radius = merchant.value!.delivery_radius_km;
+  if (dist <= radius) {
+    return { text: `✅ 可配送（距离 ${formatDistanceKm(dist)}）`, class: 'status-ok' };
+  }
+  return { text: `❌ 超出范围（距离 ${formatDistanceKm(dist)}，限 ${radius} 公里）`, class: 'status-error' };
+});
+
+const addressHasCoords = computed(() => {
+  const addr = selectedAddress.value;
+  return !!(addr && addr.latitude != null && addr.longitude != null);
+});
+
+watch(selectedAddress, () => {
+  syncCoordFromAddress();
 });
 
 const deliveryDistanceText = computed(() => {
@@ -472,6 +520,26 @@ onShow(loadData);
   color: #dc2626;
   font-size: 13px;
   margin: 4px 0 0;
+}
+
+.delivery-status {
+  font-weight: 500;
+  margin: 4px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.delivery-status.status-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+.delivery-status.status-error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.delivery-status.status-pending {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .checkout-address-header h3 {
