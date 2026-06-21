@@ -203,12 +203,39 @@
       <template #header>
         <div class="block-header">
           <div class="block-title" data-testid="web-product-card-title">商品管理</div>
-          <el-button type="primary" data-testid="web-product-open-create" @click="openCreateDialog">新增商品</el-button>
+          <div class="product-filter-bar">
+            <el-select
+              v-model="productFilters.category_id"
+              placeholder="全部分类"
+              clearable
+              data-testid="web-product-filter-category"
+              style="width: 140px;"
+              @change="applyProductFilters"
+            >
+              <el-option
+                v-for="cat in categories"
+                :key="cat.id"
+                :label="cat.name"
+                :value="cat.id"
+              />
+            </el-select>
+            <el-input
+              v-model="productFilters.keyword"
+              placeholder="搜索商品名称"
+              clearable
+              data-testid="web-product-filter-keyword"
+              style="width: 180px;"
+              @keyup.enter="applyProductFilters"
+            />
+            <el-button type="primary" data-testid="web-product-filter-search" @click="applyProductFilters">筛选</el-button>
+            <el-button data-testid="web-product-filter-reset" @click="resetProductFilters">重置</el-button>
+            <el-button type="primary" data-testid="web-product-open-create" @click="openCreateDialog">新增商品</el-button>
+          </div>
         </div>
       </template>
 
       <div class="table-wrapper">
-      <el-table :data="products" stripe data-testid="web-product-table">
+      <el-table :data="displayProducts" stripe data-testid="web-product-table">
         <el-table-column label="分类" width="120">
           <template #default="scope">{{ getCategoryName(scope.row.category_id) }}</template>
         </el-table-column>
@@ -466,6 +493,11 @@ const products = ref<Product[]>([]);
 const orders = ref<Order[]>([]);
 const lowStockAlert = ref<LowStockAlertResult | null>(null);
 
+const productFilters = reactive({
+  category_id: undefined as number | undefined,
+  keyword: ''
+});
+
 const merchantForm = reactive({
   phone: '',
   address: '',
@@ -523,6 +555,18 @@ const sectionRefs: Record<string, typeof merchantSection> = {
 
 const merchantId = computed(() => authUser.value?.merchant_id ?? 0);
 
+const displayProducts = computed(() => {
+  let result = products.value;
+  if (productFilters.category_id) {
+    result = result.filter((item) => item.category_id === productFilters.category_id);
+  }
+  if (productFilters.keyword.trim()) {
+    const kw = productFilters.keyword.trim().toLowerCase();
+    result = result.filter((item) => item.name.toLowerCase().includes(kw));
+  }
+  return result;
+});
+
 const orderStatusOptions: { label: string; value: OrderStatus }[] = [
   { label: '待确认', value: 'pending' },
   { label: '待配送', value: 'confirmed' },
@@ -571,6 +615,15 @@ function resetOrderFilters(): void {
   orderFilters.phone_suffix = undefined;
   syncFiltersToRoute();
   loadOrders();
+}
+
+function applyProductFilters(): void {
+  // 筛选逻辑已在 displayProducts 计算属性中处理
+}
+
+function resetProductFilters(): void {
+  productFilters.category_id = undefined;
+  productFilters.keyword = '';
 }
 
 function scrollToSection(key: string): void {
@@ -964,6 +1017,21 @@ onMounted(loadData);
   align-items: center;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.product-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .order-empty {

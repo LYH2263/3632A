@@ -217,8 +217,7 @@ async function loadData(): Promise<void> {
     return;
   }
   categories.value = await dataSource.listCategories(merchant.value.id);
-  const catId = selectedCategoryId.value > 0 ? selectedCategoryId.value : undefined;
-  products.value = await dataSource.listProducts(merchant.value.id, keyword.value, catId);
+  products.value = await dataSource.listProducts(merchant.value.id, keyword.value);
   await loadFavorites();
 }
 
