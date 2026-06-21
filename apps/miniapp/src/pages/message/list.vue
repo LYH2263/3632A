@@ -87,11 +87,13 @@ import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
 import AppTopBar from '../../components/AppTopBar.vue';
 import { getDataSource } from '../../services/data-source';
+import { useMessageStore } from '../../stores/message';
 import { useSessionStore } from '../../stores/session';
 import { navigateTo } from '../../utils/navigation';
 
 const dataSource = getDataSource();
 const sessionStore = useSessionStore();
+const messageStore = useMessageStore();
 
 const messages = ref<Message[]>([]);
 const loading = ref(false);
@@ -117,6 +119,7 @@ async function loadMessages(): Promise<void> {
     messages.value = result.items;
     total.value = result.total;
     unreadCount.value = result.unread_count;
+    messageStore.setUnreadCount(result.unread_count);
     page.value = 1;
   } finally {
     loading.value = false;
@@ -132,6 +135,7 @@ async function loadMore(): Promise<void> {
     messages.value = [...messages.value, ...result.items];
     total.value = result.total;
     unreadCount.value = result.unread_count;
+    messageStore.setUnreadCount(result.unread_count);
     page.value = nextPage;
   } finally {
     loading.value = false;
@@ -144,6 +148,7 @@ async function handleMarkRead(messageId: number): Promise<void> {
   if (msg) {
     msg.is_read = true;
     unreadCount.value = Math.max(0, unreadCount.value - 1);
+    messageStore.decrementUnreadCount();
   }
 }
 
@@ -153,6 +158,7 @@ async function handleMarkAllRead(): Promise<void> {
     m.is_read = true;
   });
   unreadCount.value = 0;
+  messageStore.clearUnreadCount();
 }
 
 function handleMessageClick(msg: Message): void {

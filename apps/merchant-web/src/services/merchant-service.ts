@@ -6,6 +6,7 @@ import {
   MOCK_DB_VERSION_KEY,
   migrateMerchant,
   migrateMerchantList,
+  ORDER_STATUS_LABELS,
   seedCategories,
   seedMerchants,
   seedProducts,
@@ -15,6 +16,7 @@ import {
   type LoginPayload,
   type LowStockAlertResult,
   type Merchant,
+  type Message,
   type Order,
   type OrderFilterParams,
   type OrderStatus,
@@ -152,6 +154,15 @@ function writeOrders(value: Order[]): void {
 function readUsers(): User[] {
   ensureMockStorage();
   return readJSON(STORAGE_KEYS.users, seedUsers);
+}
+
+function readMessages(): Message[] {
+  ensureMockStorage();
+  return readJSON(STORAGE_KEYS.messages, [] as Message[]);
+}
+
+function writeMessages(value: Message[]): void {
+  writeJSON(STORAGE_KEYS.messages, value);
 }
 
 function nextId(items: Array<{ id: number }>): number {
@@ -520,6 +531,7 @@ class MerchantService {
     target.status = status;
     target.updated_at = new Date().toISOString();
     writeOrders(orders);
+    this._createOrderStatusMessage(target, status);
     return target;
   }
 
@@ -630,6 +642,24 @@ class MerchantService {
       has_previous: page > 1,
       reason_choices: REASON_CHOICES
     };
+  }
+
+  private _createOrderStatusMessage(order: Order, status: OrderStatus): void {
+    const messages = readMessages();
+    const statusLabel = ORDER_STATUS_LABELS[status] || status;
+    const message: Message = {
+      id: nextId(messages),
+      buyer_id: order.buyer_id,
+      type: 'order_status',
+      order_id: order.id,
+      order_status: status,
+      title: `订单状态更新：${statusLabel}`,
+      content: `您的订单 ${order.order_no} 状态已更新为「${statusLabel}」`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    messages.push(message);
+    writeMessages(messages);
   }
 }
 

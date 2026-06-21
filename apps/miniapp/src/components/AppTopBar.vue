@@ -9,8 +9,8 @@
 		</view>
 		<view class="header-message" data-testid="header-message-btn" @click="jumpToMessage">
 			<text class="message-icon">💬</text>
-			<view v-if="unreadCount > 0" class="message-badge" data-testid="message-badge">
-				{{ unreadCount > 99 ? '99+' : unreadCount }}
+			<view v-if="messageStore.state.unreadCount > 0" class="message-badge" data-testid="message-badge">
+				{{ messageStore.state.unreadCount > 99 ? '99+' : messageStore.state.unreadCount }}
 			</view>
 		</view>
 	</view>
@@ -24,24 +24,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { getDataSource } from '../services/data-source';
-import { useSessionStore } from '../stores/session';
+import { useMessageStore } from '../stores/message';
 
-const dataSource = getDataSource();
-const sessionStore = useSessionStore();
-const unreadCount = ref(0);
-
-const buyerId = computed(() => sessionStore.state.user.id);
-
-async function loadUnreadCount(): Promise<void> {
-  try {
-    unreadCount.value = await dataSource.getUnreadMessageCount(buyerId.value);
-  } catch (e) {
-    // ignore
-  }
-}
+const messageStore = useMessageStore();
 
 function jumpTo(path: string): void {
 	const url = `/${path}`
@@ -57,11 +44,11 @@ function jumpToMessage(): void {
 }
 
 onMounted(() => {
-  loadUnreadCount();
+  messageStore.refreshUnreadCount();
 });
 
 onShow(() => {
-  loadUnreadCount();
+  messageStore.refreshUnreadCount();
 });
 </script>
 
