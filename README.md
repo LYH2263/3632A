@@ -125,6 +125,9 @@ MINIAPP_API_BASE_URL=http://localhost:8000/api/v1
 
 补充说明：
 
+- 首次 `docker compose up` 时 MySQL 初始化与后端 `migrate + seed` 可能需要 **2～3 分钟**，请等待全部服务 healthy 后再访问前端
+- 就绪检查：`http://localhost:8000/api/v1/health` 返回 200 表示后端可用
+- 若 MySQL 容器反复重启或报数据文件损坏，执行 `docker compose down -v` 清空数据卷后重新启动
 - Docker 启动后，后端容器会自动执行 `migrate` 和 `seed_mvp_data`，通常无需手动重复初始化
 - 种子脚本使用幂等写入方式，重复执行不会重复创建同名商家、商品和账号
 

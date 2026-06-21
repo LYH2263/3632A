@@ -17,10 +17,11 @@ services:
     ports:
       - '3306:3306'
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-p${MYSQL_ROOT_PASSWORD:-root_pass}']
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" || exit 1']
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 12
+      start_period: 180s
     volumes:
       - mysql_data:/var/lib/mysql
 
@@ -54,16 +55,21 @@ services:
       SECRET_KEY: ${SECRET_KEY:-community-store-dev-secret}
     depends_on:
       mysql:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
     ports:
       - '8000:8000'
     healthcheck:
-      test: ['CMD', 'python', 'manage.py', 'check']
-      interval: 20s
-      timeout: 10s
-      retries: 5
+      test:
+        [
+          'CMD-SHELL',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://127.0.0.1:8000/api/v1/health'', timeout=3)" || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 180s
 
   merchant-web:
     build:

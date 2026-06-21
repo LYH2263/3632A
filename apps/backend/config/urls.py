@@ -16,9 +16,11 @@ from settlements.views import (
     SettlementStatementConfirmView,
     SettlementGenerateView
 )
+from common.health import HealthView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/v1/health', HealthView.as_view(), name='health'),
     path('api/v1/auth/login', LoginView.as_view(), name='auth-login'),
     path('api/v1/auth/register-merchant', RegisterMerchantView.as_view(), name='auth-register-merchant'),
     path('api/v1/merchants', MerchantListView.as_view(), name='merchant-list'),
