@@ -9,36 +9,37 @@
           <p class="muted" data-testid="order-list-buyer">当前展示买家 {{ buyerId }} 的订单记录</p>
 
           <view class="filter-section">
-            <view class="filter-row">
-              <text class="filter-label">状态</text>
+            <view class="field">
+              <text class="field-label">订单状态</text>
               <picker :range="statusOptions" range-key="label" @change="onStatusChange">
-                <view class="filter-picker" data-testid="order-filter-status">
+                <view class="filter-picker" :class="{ 'filter-picker-active': !!filters.status }" data-testid="order-filter-status">
                   {{ activeStatusLabel }}
                 </view>
               </picker>
             </view>
-            <view class="filter-row">
-              <text class="filter-label">起始日期</text>
+            <view class="field">
+              <text class="field-label">起始日期</text>
               <picker mode="date" @change="onDateStartChange" :value="filters.date_start || ''">
-                <view class="filter-picker" data-testid="order-filter-date-start">
+                <view class="filter-picker" :class="{ 'filter-picker-active': !!filters.date_start }" data-testid="order-filter-date-start">
                   {{ filters.date_start || '不限' }}
                 </view>
               </picker>
             </view>
-            <view class="filter-row">
-              <text class="filter-label">截止日期</text>
+            <view class="field">
+              <text class="field-label">截止日期</text>
               <picker mode="date" @change="onDateEndChange" :value="filters.date_end || ''">
-                <view class="filter-picker" data-testid="order-filter-date-end">
+                <view class="filter-picker" :class="{ 'filter-picker-active': !!filters.date_end }" data-testid="order-filter-date-end">
                   {{ filters.date_end || '不限' }}
                 </view>
               </picker>
             </view>
-            <view class="filter-row">
-              <text class="filter-label">订单号</text>
+            <view class="field">
+              <text class="field-label">订单号</text>
               <input
                 class="filter-input"
                 v-model="orderNoInput"
                 placeholder="模糊搜索"
+                placeholder-class="filter-input-placeholder"
                 data-testid="order-filter-order-no"
                 @confirm="applyOrderNo"
               />
@@ -155,6 +156,7 @@ function resetFilters(): void {
   delete filters.date_end;
   delete filters.order_no;
   orderNoInput.value = '';
+  loadOrders();
 }
 
 function formatDate(raw: string): string {
@@ -206,37 +208,63 @@ onShow(loadOrders);
   margin-top: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.filter-section .field {
+  margin-bottom: 0;
 }
 
-.filter-label {
+.field-label {
+  display: block;
+  margin-bottom: 4px;
   font-size: 13px;
-  color: var(--text-secondary, #999);
-  min-width: 60px;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .filter-picker {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 4px;
-  font-size: 13px;
-  background: var(--bg, #fff);
+  min-height: 44px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-picker-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.1);
+  background: #fff;
 }
 
 .filter-input {
-  flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 4px;
+  min-height: 44px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 14px;
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--text);
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filter-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.1);
+  background: #fff;
+  outline: none;
+}
+
+.filter-input-placeholder {
+  color: var(--muted);
   font-size: 13px;
-  background: var(--bg, #fff);
 }
 
 .filter-actions {
@@ -247,8 +275,9 @@ onShow(loadOrders);
 
 .filter-actions button {
   flex: 1;
-  font-size: 13px;
-  padding: 6px 0;
-  min-height: auto;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 0;
+  min-height: 44px;
 }
 </style>
